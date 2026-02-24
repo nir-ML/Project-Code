@@ -1,0 +1,125 @@
+% ============================================================================
+% METHODS BRIEF: POLYPHARMACY RISK ASSESSMENT
+% Publication Format
+% ============================================================================
+
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{float}
+\geometry{margin=1in}
+
+\begin{document}
+
+\section*{Polypharmacy Risk Assessment Methods}
+
+\subsection*{Polypharmacy Risk Index (PRI)}
+
+We developed the Polypharmacy Risk Index (PRI) to quantify individual drug risk within multi-drug regimens. The PRI combines four network-based metrics weighted according to their clinical relevance:
+
+\begin{equation}
+\text{PRI}(d) = 0.25 \cdot C_{\text{degree}}(d) + 0.30 \cdot C_{\text{weighted}}(d) + 0.20 \cdot C_{\text{betweenness}}(d) + 0.25 \cdot S(d)
+\end{equation}
+
+\subsection*{Component Metrics}
+
+\begin{itemize}
+    \item \textbf{Degree Centrality} $C_{\text{degree}}(d)$: Captures the interaction burden as the number of drugs interacting with drug $d$.
+    \item \textbf{Weighted Degree} $C_{\text{weighted}}(d)$: Represents the severity-weighted sum of all interactions, giving greater importance to contraindicated and major interactions.
+    \item \textbf{Betweenness Centrality} $C_{\text{betweenness}}(d)$: Quantifies the drug's role in risk propagation pathways across the network.
+    \item \textbf{Severity Profile Score} $S(d)$: Measures the proportion of a drug's interactions that are classified as contraindicated or major.
+\end{itemize}
+
+\subsection*{Risk Classification Thresholds}
+
+\begin{table}[H]
+\centering
+\caption{PRI Risk Classification Thresholds}
+\label{tab:pri_thresholds}
+\begin{tabular}{lll}
+\toprule
+\textbf{PRI Score} & \textbf{Risk Level} & \textbf{Clinical Action} \\
+\midrule
+$> 0.5$ & High Risk & Immediate clinical review required \\
+$0.3 - 0.5$ & Medium Risk & Close monitoring warranted \\
+$< 0.3$ & Lower Risk & Standard monitoring protocols \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{Severity Weighting Schema}
+
+The severity weights used in the weighted degree calculation are derived from clinical significance:
+
+\begin{table}[H]
+\centering
+\caption{Severity Weights for PRI Calculation}
+\label{tab:severity_weights}
+\begin{tabular}{lr}
+\toprule
+\textbf{Severity Level} & \textbf{Weight} \\
+\midrule
+Contraindicated & 4.0 \\
+Major & 3.0 \\
+Moderate & 2.0 \\
+Minor & 1.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{DDI Severity Distribution}
+
+The DDI severity distribution after recalibration using the empirical keyword-based classifier validated against DDInter (66.4\% exact accuracy, $\kappa$ = +0.096):
+
+\begin{table}[H]
+\centering
+\caption{DDI Severity Distribution}
+\label{tab:severity_distribution}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Severity} & \textbf{Count} & \textbf{Percentage} \\
+\midrule
+Moderate & 608,742 & 80.1\% \\
+Minor & 70,682 & 9.3\% \\
+Contraindicated & 44,306 & 5.8\% \\
+Major & 36,044 & 4.7\% \\
+\midrule
+\textbf{Total} & \textbf{759,774} & \textbf{100.0\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section*{Figures}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{plots_and_data/polypharmacy_risk_escalation.png}
+\caption{Polypharmacy risk escalation visualization showing how overall regimen risk increases with the number of concurrent medications.}
+\label{fig:risk_escalation}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{plots_and_data/drug_risk_matrix.png}
+\caption{Drug risk matrix displaying high-risk drug combinations and their associated severity levels.}
+\label{fig:risk_matrix}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{plots_and_data/severity_heatmap.png}
+\caption{Severity heatmap showing the distribution of interaction severities across drug classes.}
+\label{fig:severity_heatmap}
+\end{figure}
+
+\bibliographystyle{plain}
+\begin{thebibliography}{2}
+\bibitem{wishart2018drugbank} Wishart DS, et al. DrugBank 5.0: a major update to the DrugBank database for 2018. \textit{Nucleic Acids Res}. 2018;46(D1):D1074-D1082.
+\bibitem{xiong2022ddinter} Xiong G, et al. DDInter: an online drug-drug interaction database. \textit{Nucleic Acids Res}. 2022;50(D1):D1200-D1207.
+\end{thebibliography}
+
+\end{document}

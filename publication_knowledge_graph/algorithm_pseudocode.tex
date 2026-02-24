@@ -1,0 +1,307 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{amsmath}
+\usepackage{geometry}
+\usepackage{booktabs}
+\geometry{margin=1in}
+
+\title{\textbf{Algorithm Pseudocode}\\
+\large Fact-Based DDI Knowledge Graph Construction}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Main Knowledge Graph Construction Pipeline}
+
+\begin{algorithm}[H]
+\caption{Fact-Based Knowledge Graph Construction}
+\label{alg:main}
+\begin{algorithmic}[1]
+\REQUIRE DDI dataset $\mathcal{D}_{DDI}$ with recalibrated severity
+\REQUIRE DrugBank XML database $\mathcal{DB}$
+\REQUIRE SIDER side effect database $\mathcal{S}$
+\REQUIRE CTD disease database $\mathcal{C}$
+\ENSURE Knowledge graph $\mathcal{G} = (\mathcal{V}, \mathcal{E})$
+
+\STATE \COMMENT{\textbf{Phase 1: Load Source Identifiers}}
+\STATE $\mathcal{I}_{drugs}, \mathcal{I}_{names}, \mathcal{I}_{atc} \gets \Call{LoadIdentifiers}{\mathcal{D}_{DDI}}$
+
+\STATE \COMMENT{\textbf{Phase 2: Parse DrugBank XML}}
+\STATE $\mathcal{V}_{drug}, \mathcal{V}_{protein}, \mathcal{V}_{pathway}, \mathcal{V}_{category} \gets \Call{ParseDrugBank}{\mathcal{DB}, \mathcal{I}_{drugs}}$
+\STATE $\mathcal{E}_{dp}, \mathcal{E}_{dpath}, \mathcal{E}_{dcat} \gets \Call{ExtractDrugBankEdges}{\mathcal{DB}}$
+
+\STATE \COMMENT{\textbf{Phase 3: Extract DDI Edges with Severity}}
+\STATE $\mathcal{E}_{ddi} \gets \Call{ExtractDDIEdges}{\mathcal{D}_{DDI}}$
+
+\STATE \COMMENT{\textbf{Phase 4: Integrate SIDER}}
+\STATE $\mathcal{V}_{se}, \mathcal{E}_{dse} \gets \Call{IntegrateSIDER}{\mathcal{S}, \mathcal{I}_{names}}$
+
+\STATE \COMMENT{\textbf{Phase 5: Integrate CTD}}
+\STATE $\mathcal{V}_{dis}, \mathcal{E}_{ddis} \gets \Call{IntegrateCTD}{\mathcal{C}, \mathcal{I}_{drugs}, \mathcal{I}_{names}}$
+
+\STATE \COMMENT{\textbf{Phase 6: Build Graph}}
+\STATE $\mathcal{V} \gets \mathcal{V}_{drug} \cup \mathcal{V}_{protein} \cup \mathcal{V}_{se} \cup \mathcal{V}_{dis} \cup \mathcal{V}_{pathway} \cup \mathcal{V}_{category}$
+\STATE $\mathcal{E} \gets \mathcal{E}_{ddi} \cup \mathcal{E}_{dp} \cup \mathcal{E}_{dse} \cup \mathcal{E}_{ddis} \cup \mathcal{E}_{dpath} \cup \mathcal{E}_{dcat}$
+
+\RETURN $\mathcal{G} = (\mathcal{V}, \mathcal{E})$
+\end{algorithmic}
+\end{algorithm}
+
+\newpage
+\section{DrugBank XML Parsing}
+
+\begin{algorithm}[H]
+\caption{ParseDrugBank: Extract Drug Information from XML}
+\label{alg:drugbank}
+\begin{algorithmic}[1]
+\REQUIRE DrugBank XML $\mathcal{DB}$, Target drug IDs $\mathcal{I}_{drugs}$
+\ENSURE Drug nodes $\mathcal{V}_{drug}$, Protein nodes $\mathcal{V}_{protein}$
+
+\STATE $\mathcal{V}_{drug} \gets \emptyset$
+\STATE $\mathcal{V}_{protein} \gets \emptyset$
+\STATE $\mathcal{E}_{dp} \gets \emptyset$
+
+\FOR{each $drug \in \mathcal{DB}$}
+    \STATE $id \gets \Call{GetPrimaryID}{drug}$
+    \IF{$id \in \mathcal{I}_{drugs}$}
+        \STATE \COMMENT{Extract drug properties}
+        \STATE $node \gets \Call{DrugNode}{}$
+        \STATE $node.id \gets id$
+        \STATE $node.name \gets \Call{GetText}{drug, \text{``name''}}$
+        \STATE $node.cas \gets \Call{GetText}{drug, \text{``cas-number''}}$
+        \STATE $node.smiles \gets \Call{GetProperty}{drug, \text{``SMILES''}}$
+        \STATE $node.inchi \gets \Call{GetProperty}{drug, \text{``InChI''}}$
+        \STATE $node.atc \gets \Call{GetATCCodes}{drug}$
+        \STATE $\mathcal{V}_{drug} \gets \mathcal{V}_{drug} \cup \{node\}$
+        
+        \STATE \COMMENT{Extract protein targets}
+        \FOR{each $target \in \Call{GetTargets}{drug}$}
+            \STATE $prot \gets \Call{CreateProteinNode}{target}$
+            \STATE $\mathcal{V}_{protein} \gets \mathcal{V}_{protein} \cup \{prot\}$
+            \STATE $edge \gets (id, prot.id, \text{``TARGETS''}, \Call{Provenance}{\text{``DrugBank''}})$
+            \STATE $\mathcal{E}_{dp} \gets \mathcal{E}_{dp} \cup \{edge\}$
+        \ENDFOR
+    \ENDIF
+\ENDFOR
+
+\RETURN $\mathcal{V}_{drug}, \mathcal{V}_{protein}, \mathcal{E}_{dp}$
+\end{algorithmic}
+\end{algorithm}
+
+\newpage
+\section{Multi-Source Entity Matching}
+
+\begin{algorithm}[H]
+\caption{IntegrateSIDER: Drug-Side Effect Associations}
+\label{alg:sider}
+\begin{algorithmic}[1]
+\REQUIRE SIDER database $\mathcal{S}$, Drug name index $\mathcal{I}_{names}$
+\ENSURE Side effect nodes $\mathcal{V}_{se}$, Drug-SE edges $\mathcal{E}_{dse}$
+
+\STATE $\mathcal{V}_{se} \gets \emptyset$
+\STATE $\mathcal{E}_{dse} \gets \emptyset$
+\STATE $matched \gets 0$
+
+\FOR{each $(drug\_name, side\_effects) \in \mathcal{S}$}
+    \STATE $name\_lower \gets \Call{ToLower}{drug\_name}$
+    
+    \IF{$name\_lower \in \mathcal{I}_{names}$}
+        \STATE $drug\_id \gets \mathcal{I}_{names}[name\_lower]$
+        \STATE $matched \gets matched + 1$
+        
+        \FOR{each $se \in side\_effects$}
+            \STATE \COMMENT{Create side effect node if new}
+            \IF{$se.id \notin \mathcal{V}_{se}$}
+                \STATE $\mathcal{V}_{se} \gets \mathcal{V}_{se} \cup \{\Call{SideEffectNode}{se}\}$
+            \ENDIF
+            
+            \STATE \COMMENT{Create edge with provenance}
+            \STATE $prov \gets \Call{Provenance}{\text{``SIDER''}, \text{``drug\_name''}, drug\_name}$
+            \STATE $edge \gets (drug\_id, se.id, \text{``CAUSES''}, prov)$
+            \STATE $\mathcal{E}_{dse} \gets \mathcal{E}_{dse} \cup \{edge\}$
+        \ENDFOR
+    \ENDIF
+\ENDFOR
+
+\STATE \textbf{log} ``Matched $matched$ SIDER drugs by name''
+\RETURN $\mathcal{V}_{se}, \mathcal{E}_{dse}$
+\end{algorithmic}
+\end{algorithm}
+
+\newpage
+\section{CTD Disease Integration}
+
+\begin{algorithm}[H]
+\caption{IntegrateCTD: Drug-Disease Associations}
+\label{alg:ctd}
+\begin{algorithmic}[1]
+\REQUIRE CTD database $\mathcal{C}$
+\REQUIRE Drug CAS index $\mathcal{I}_{cas}$, Drug name index $\mathcal{I}_{names}$
+\ENSURE Disease nodes $\mathcal{V}_{dis}$, Drug-Disease edges $\mathcal{E}_{ddis}$
+
+\STATE $\mathcal{V}_{dis} \gets \emptyset$
+\STATE $\mathcal{E}_{ddis} \gets \emptyset$
+\STATE $cas\_matches \gets 0$
+\STATE $name\_matches \gets 0$
+
+\FOR{each $(chemical, cas, diseases) \in \mathcal{C}$}
+    \STATE $drug\_id \gets \text{None}$
+    \STATE $match\_type \gets \text{None}$
+    
+    \STATE \COMMENT{Priority 1: CAS number matching}
+    \IF{$cas \in \mathcal{I}_{cas}$}
+        \STATE $drug\_id \gets \mathcal{I}_{cas}[cas]$
+        \STATE $match\_type \gets \text{``cas\_number''}$
+        \STATE $cas\_matches \gets cas\_matches + 1$
+    
+    \STATE \COMMENT{Priority 2: Drug name matching}
+    \ELSIF{$\Call{ToLower}{chemical} \in \mathcal{I}_{names}$}
+        \STATE $drug\_id \gets \mathcal{I}_{names}[\Call{ToLower}{chemical}]$
+        \STATE $match\_type \gets \text{``drug\_name''}$
+        \STATE $name\_matches \gets name\_matches + 1$
+    \ENDIF
+    
+    \IF{$drug\_id \neq \text{None}$}
+        \FOR{each $dis \in diseases$}
+            \IF{$dis.id \notin \mathcal{V}_{dis}$}
+                \STATE $\mathcal{V}_{dis} \gets \mathcal{V}_{dis} \cup \{\Call{DiseaseNode}{dis}\}$
+            \ENDIF
+            
+            \STATE $prov \gets \Call{Provenance}{\text{``CTD''}, match\_type, cas}$
+            \STATE $edge \gets (drug\_id, dis.id, \text{``ASSOCIATED\_WITH''}, prov)$
+            \STATE $\mathcal{E}_{ddis} \gets \mathcal{E}_{ddis} \cup \{edge\}$
+        \ENDFOR
+    \ENDIF
+\ENDFOR
+
+\STATE \textbf{log} ``CAS matches: $cas\_matches$, Name matches: $name\_matches$''
+\RETURN $\mathcal{V}_{dis}, \mathcal{E}_{ddis}$
+\end{algorithmic}
+\end{algorithm}
+
+\newpage
+\section{DDI Edge Extraction with Severity}
+
+\begin{algorithm}[H]
+\caption{ExtractDDIEdges: Drug-Drug Interactions with Recalibrated Severity}
+\label{alg:ddi}
+\begin{algorithmic}[1]
+\REQUIRE Recalibrated DDI dataset $\mathcal{D}_{DDI}$
+\ENSURE DDI edges $\mathcal{E}_{ddi}$
+
+\STATE $\mathcal{E}_{ddi} \gets \emptyset$
+
+\STATE \COMMENT{Determine best severity column}
+\IF{``severity\_calibrated'' $\in$ columns($\mathcal{D}_{DDI}$)}
+    \STATE $sev\_col \gets$ ``severity\_calibrated''
+\ELSIF{``severity\_recalibrated'' $\in$ columns($\mathcal{D}_{DDI}$)}
+    \STATE $sev\_col \gets$ ``severity\_recalibrated''
+\ELSE
+    \STATE $sev\_col \gets$ ``severity\_label''
+\ENDIF
+
+\FOR{each $row \in \mathcal{D}_{DDI}$}
+    \STATE $drug1 \gets row[\text{``drugbank\_id\_1''}]$
+    \STATE $drug2 \gets row[\text{``drugbank\_id\_2''}]$
+    \STATE $desc \gets row[\text{``interaction\_description''}]$
+    \STATE $severity \gets row[sev\_col]$
+    
+    \STATE $prov \gets \Call{Provenance}{\text{``CSV''}, \text{``drugbank\_id''}, drug1 + ``-'' + drug2}$
+    
+    \STATE $edge \gets \Call{DDIEdge}{drug1, drug2, desc, severity, prov}$
+    \STATE $\mathcal{E}_{ddi} \gets \mathcal{E}_{ddi} \cup \{edge\}$
+\ENDFOR
+
+\RETURN $\mathcal{E}_{ddi}$
+\end{algorithmic}
+\end{algorithm}
+
+\newpage
+\section{Provenance Data Structure}
+
+\begin{algorithm}[H]
+\caption{Provenance: Data Lineage Tracking}
+\label{alg:provenance}
+\begin{algorithmic}[1]
+\STATE \COMMENT{Every edge includes provenance metadata}
+\STATE
+\STATE \textbf{dataclass} Provenance:
+\STATE \quad $source$: string \COMMENT{DrugBank, SIDER, CTD, CSV}
+\STATE \quad $match\_type$: string \COMMENT{drugbank\_id, drug\_name, cas\_number}
+\STATE \quad $match\_value$: string \COMMENT{The actual identifier used}
+\STATE \quad $confidence$: string $\gets$ ``exact'' \COMMENT{exact, verified}
+\STATE
+\STATE \COMMENT{Example provenance records:}
+\STATE \quad DrugBank protein: Provenance(``DrugBank'', ``drugbank\_id'', ``DB00001'')
+\STATE \quad SIDER side effect: Provenance(``SIDER'', ``drug\_name'', ``Aspirin'')
+\STATE \quad CTD disease: Provenance(``CTD'', ``cas\_number'', ``50-78-2'')
+\end{algorithmic}
+\end{algorithm}
+
+\section{Severity Recalibration (Rule-Based Classifier)}
+
+\begin{algorithm}[H]
+\caption{EmpiricalSeverityClassifier: DDInter-Validated Classification}
+\label{alg:severity}
+\begin{algorithmic}[1]
+\REQUIRE DDI description $d$, Keyword weights $\mathcal{W}$, All scores $\mathcal{S}_{all}$
+\ENSURE Severity $\in$ \{Contraindicated, Major, Moderate, Minor\}
+
+\STATE \COMMENT{Step 1: Compute empirical score}
+\STATE $score \gets \sum_{k \in \mathcal{W}} \mathcal{W}[k] \cdot \mathbb{1}[k \in \Call{ToLower}{d}]$
+
+\STATE \COMMENT{Step 2: Compute percentile thresholds (optimized via grid search)}
+\STATE $P_{96} \gets \Call{Percentile}{\mathcal{S}_{all}, 96}$ \COMMENT{Top 4\%}
+\STATE $P_{92} \gets \Call{Percentile}{\mathcal{S}_{all}, 92}$ \COMMENT{Top 8\%}
+\STATE $P_{2} \gets \Call{Percentile}{\mathcal{S}_{all}, 2}$ \COMMENT{Bottom 2\%}
+
+\STATE \COMMENT{Step 3: Classify}
+\IF{$score \geq P_{96}$}
+    \RETURN ``Contraindicated interaction''
+\ELSIF{$score \geq P_{92}$}
+    \RETURN ``Major interaction''
+\ELSIF{$score \leq P_{2}$}
+    \RETURN ``Minor interaction''
+\ELSE
+    \RETURN ``Moderate interaction''
+\ENDIF
+\end{algorithmic}
+\end{algorithm}
+
+\newpage
+\section{Complexity Analysis}
+
+\begin{table}[h]
+\centering
+\caption{Time Complexity of Knowledge Graph Construction}
+\label{tab:complexity}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Phase} & \textbf{Operation} & \textbf{Complexity} & \textbf{Actual Time} \\
+\midrule
+Phase 1 & Load CSV identifiers & $O(n)$ & $\sim$30s \\
+Phase 2 & Parse DrugBank XML & $O(m \cdot k)$ & $\sim$20s \\
+Phase 3 & Extract DDI edges & $O(n)$ & $\sim$10s \\
+Phase 4 & Integrate SIDER & $O(s)$ & $\sim$1s \\
+Phase 5 & Integrate CTD & $O(c)$ & $\sim$5s \\
+Phase 6 & Build NetworkX graph & $O(|V| + |E|)$ & $\sim$3s \\
+\midrule
+\textbf{Total} & & & $\sim$70s \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Where:
+\begin{itemize}
+    \item $n$ = Number of DDI pairs (759,774)
+    \item $m$ = Number of drugs in DrugBank (19,830)
+    \item $k$ = Average entities per drug ($\sim$50)
+    \item $s$ = SIDER entries (265,238)
+    \item $c$ = CTD entries (63,278)
+\end{itemize}
+
+\end{document}

@@ -1,0 +1,5 @@
+severity,count,percentage,target_percentage
+Moderate interaction,608742,80.1,74.0
+Minor interaction,70682,9.3,4.0
+Contraindicated interaction,44306,5.8,4.0
+Major interaction,36044,4.7,18.0

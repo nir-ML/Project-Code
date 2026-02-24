@@ -1,0 +1,24 @@
+% Table 3: Data Sources and Matching Methods
+\begin{table}[htbp]
+\centering
+\caption{Data Sources and Entity Matching Methods}
+\label{tab:data_sources}
+\begin{tabular}{llrl}
+\toprule
+\textbf{Source} & \textbf{Entity Type} & \textbf{Count} & \textbf{Match Method} \\
+\midrule
+DrugBank & Drugs & 4,313 & DrugBank ID (exact) \\
+DrugBank & Proteins & 3,176 & DrugBank ID (exact) \\
+DrugBank & Pathways & 25,958 & DrugBank ID (exact) \\
+DrugBank & Categories & 3,619 & DrugBank ID (exact) \\
+DrugBank & SNP Effects & 211 & DrugBank ID (exact) \\
+DrugBank & SNP ADRs & 113 & DrugBank ID (exact) \\
+\midrule
+SIDER & Side Effects & 5,548 & Drug name (exact) \\
+SIDER & Drug-SE Assoc. & 265,238 & Drug name (exact) \\
+\midrule
+CTD & Diseases & 3,041 & CAS / Drug name \\
+CTD & Drug-Disease & 63,278 & CAS / Drug name \\
+\bottomrule
+\end{tabular}
+\end{table}

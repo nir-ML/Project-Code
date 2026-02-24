@@ -1,0 +1,154 @@
+% ============================================================================
+% METHODS BRIEF: DRUG RECOMMENDATION SYSTEM
+% Publication Format
+% ============================================================================
+
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{float}
+\geometry{margin=1in}
+
+\begin{document}
+
+\section*{Multi-Objective Drug Recommendation System Methods}
+
+\subsection*{Overview}
+
+The recommendation system employs a multi-objective optimization framework to identify therapeutic alternatives that balance clinical efficacy with safety. For each candidate alternative drug $d_{\text{alt}}$, we compute a recommendation score:
+
+\begin{equation}
+\text{RecScore}(d_{\text{alt}}) = 0.40 \cdot T(d_{\text{alt}}) + 0.35 \cdot SAF(d_{\text{alt}}) + 0.25 \cdot R(d_{\text{alt}})
+\end{equation}
+
+\subsection*{Score Components}
+
+\subsubsection*{Therapeutic Similarity Score $T(d_{\text{alt}})$ (Weight: 0.40)}
+
+Evaluates whether the alternative can serve the same clinical purpose as the original drug:
+
+\begin{itemize}
+    \item \textbf{ATC Code Matching}: Pharmacological class equivalence based on Anatomical Therapeutic Chemical classification
+    \item \textbf{Shared Protein Targets}: Similar mechanisms of action through common molecular targets
+    \item \textbf{Disease Indication Overlap}: Therapeutic applicability confirmation
+    \item \textbf{Metabolic Pathway Similarity}: Comparable pharmacokinetic profiles
+\end{itemize}
+
+\subsubsection*{Safety Improvement Score $SAF(d_{\text{alt}})$ (Weight: 0.35)}
+
+Quantifies the reduction in DDI risk when the alternative is used with other drugs in the current regimen:
+
+\begin{itemize}
+    \item Contraindicated interactions are penalized heavily (weight: 4.0)
+    \item Major interactions are penalized moderately (weight: 3.0)
+    \item Moderate interactions receive standard weight (weight: 2.0)
+    \item Minor interactions receive minimal penalty (weight: 1.0)
+\end{itemize}
+
+\subsubsection*{Risk Reduction Score $R(d_{\text{alt}})$ (Weight: 0.25)}
+
+Measures the net change in severe interactions and PRI score improvement:
+
+\begin{equation}
+R(d_{\text{alt}}) = \frac{\Delta_{\text{contraindicated}} + \Delta_{\text{major}} + \alpha \cdot \Delta_{\text{PRI}}}{\text{max\_possible\_reduction}}
+\end{equation}
+
+where $\alpha$ is a scaling factor for PRI improvement contribution.
+
+\subsection*{Case Study: High-Risk Cardiovascular Polypharmacy}
+
+We validated the methodology using a clinically realistic 5-drug cardiovascular regimen:
+
+\begin{table}[H]
+\centering
+\caption{Original High-Risk Regimen}
+\label{tab:original_regimen}
+\begin{tabular}{ll}
+\toprule
+\textbf{Drug} & \textbf{Class} \\
+\midrule
+Warfarin & Anticoagulant \\
+Amiodarone & Antiarrhythmic \\
+Digoxin & Cardiac Glycoside \\
+Quinidine & Antiarrhythmic \\
+Propranolol & Beta-blocker \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Analysis revealed 10 severe drug-drug interactions: 2 contraindicated (Warfarin-Amiodarone causing increased bleeding risk, and Digoxin-Propranolol causing severe bradycardia) and 8 major interactions.
+
+\subsection*{DOAC Alternatives Comparison}
+
+\begin{table}[H]
+\centering
+\caption{Multi-Objective Recommendation Scores for DOAC Alternatives}
+\label{tab:doac_alternatives}
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+\textbf{Drug} & \textbf{RecScore} & \textbf{Therap.} & \textbf{Safety} & \textbf{Risk$\downarrow$} & \textbf{Contra} & \textbf{Major} \\
+\midrule
+\textbf{Dabigatran} & \textbf{0.801} & 0.850 & 0.782 & 0.750 & 0 & 1 \\
+Fondaparinux & 0.524 & 0.850 & 0.347 & 0.250 & 0 & 3 \\
+Apixaban & 0.385 & 0.850 & 0.129 & 0.000 & 0 & 4 \\
+Rivaroxaban & 0.385 & 0.850 & 0.129 & 0.000 & 0 & 4 \\
+Edoxaban & 0.385 & 0.850 & 0.129 & 0.000 & 0 & 4 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{Results Summary}
+
+Substituting Warfarin with Dabigatran achieved:
+\begin{itemize}
+    \item Contraindicated interactions: 2 $\rightarrow$ 1 (50\% reduction)
+    \item Major interactions: 8 $\rightarrow$ 6 (25\% reduction)
+    \item Total severe interactions: 10 $\rightarrow$ 7 (30\% reduction)
+    \item Average PRI: 0.569 $\rightarrow$ 0.504 (11.5\% improvement)
+\end{itemize}
+
+\section*{Figures}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{plots_and_data/drug_alternatives_heatmap.png}
+\caption{Drug alternatives heatmap showing recommendation scores for various therapeutic substitution options.}
+\label{fig:alternatives_heatmap}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{plots_and_data/drug_substitution_network.png}
+\caption{Drug substitution network visualization showing recommended alternatives and their therapeutic relationships.}
+\label{fig:substitution_network}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{plots_and_data/network_safe_alternatives.png}
+\caption{Safe alternatives network highlighting drugs with improved safety profiles compared to high-risk options.}
+\label{fig:safe_alternatives}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{plots_and_data/class_alternatives_summary.png}
+\caption{Class-level alternatives summary showing therapeutic substitution patterns across drug categories.}
+\label{fig:class_alternatives}
+\end{figure}
+
+\section*{Conclusion}
+
+The multi-objective recommendation framework provides a systematic approach for optimizing multi-drug regimens by balancing therapeutic similarity (40\%), safety improvement (35\%), and risk reduction (25\%). This evidence-based approach supports clinical decision-making in complex polypharmacy scenarios.
+
+\bibliographystyle{plain}
+\begin{thebibliography}{2}
+\bibitem{wishart2018drugbank} Wishart DS, et al. DrugBank 5.0: a major update to the DrugBank database for 2018. \textit{Nucleic Acids Res}. 2018;46(D1):D1074-D1082.
+\bibitem{xiong2022ddinter} Xiong G, et al. DDInter: an online drug-drug interaction database. \textit{Nucleic Acids Res}. 2022;50(D1):D1200-D1207.
+\end{thebibliography}
+
+\end{document}
