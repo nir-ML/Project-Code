@@ -2463,23 +2463,34 @@ def create_app():
         border-radius: 8px !important;
     }
     .gr-image [data-testid="image"], .gr-image .image-container,
-    .gr-image .upload-container, .gr-image .icon-buttons,
-    .gr-image .source-container, .gr-image .source-icon {
+    .gr-image .upload-container {
         min-height: auto !important;
         overflow: visible !important;
-        display: flex !important;
-        visibility: visible !important;
     }
-    .gr-image .icon-buttons {
-        position: relative !important;
-        z-index: 10 !important;
-    }
-    /* Hide upload icon */
+    /* Hide ALL icons in image upload */
+    .gr-image .icon-buttons,
     .gr-image svg,
     .gr-image .upload-icon,
     .gr-image [data-testid="upload-icon"],
-    .gr-image .icon {
+    .gr-image .icon,
+    .gr-image button[aria-label],
+    .gr-image .source-selection,
+    .gr-image .webcam-icon,
+    .gr-image .upload-text,
+    .gr-image .source-container,
+    .gr-image .source-icon,
+    .gr-image [data-testid="upload"],
+    .gr-image .wrap svg,
+    .gr-image .upload svg,
+    .gr-image path,
+    .gr-image .pending,
+    .gr-image .upload-button,
+    [data-testid="image"] svg,
+    [data-testid="image"] .upload,
+    [data-testid="image"] .icon-wrap {
         display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
     }
     
     /* Scrollbar */
