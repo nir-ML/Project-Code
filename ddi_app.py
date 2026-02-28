@@ -881,26 +881,26 @@ def _fallback_monitoring(interactions, detected_risks):
     monitoring = []
     
     if 'bleeding' in detected_risks:
-        monitoring.append("🩸 **Bleeding Risk:** Monitor PT/INR, CBC, and signs of bleeding - *Rationale: Anticoagulant interaction detected in DrugBank*")
+        monitoring.append("**Bleeding Risk:** Monitor PT/INR, CBC, and signs of bleeding - *Rationale: Anticoagulant interaction detected in DrugBank*")
     if 'serotonin_syndrome' in detected_risks:
-        monitoring.append("🧠 **Serotonin Syndrome:** Monitor mental status, temperature, reflexes - *Rationale: Serotonergic drug combination identified*")
+        monitoring.append("**Serotonin Syndrome:** Monitor mental status, temperature, reflexes - *Rationale: Serotonergic drug combination identified*")
     if 'cardiac' in detected_risks:
-        monitoring.append("❤️ **Cardiac:** ECG monitoring for QT prolongation - *Rationale: QT-affecting interaction in DrugBank*")
+        monitoring.append("**Cardiac:** ECG monitoring for QT prolongation - *Rationale: QT-affecting interaction in DrugBank*")
     if 'hypotension' in detected_risks:
-        monitoring.append("📉 **Blood Pressure:** Regular BP monitoring - *Rationale: Hypotensive interaction detected*")
+        monitoring.append("**Blood Pressure:** Regular BP monitoring - *Rationale: Hypotensive interaction detected*")
     if 'renal' in detected_risks:
-        monitoring.append("🫘 **Renal Function:** Monitor creatinine, BUN, GFR - *Rationale: Nephrotoxic interaction in DrugBank*")
+        monitoring.append("**Renal Function:** Monitor creatinine, BUN, GFR - *Rationale: Nephrotoxic interaction in DrugBank*")
     if 'hepatic' in detected_risks:
-        monitoring.append("🫀 **Hepatic Function:** Monitor LFTs (AST, ALT, bilirubin) - *Rationale: Hepatotoxic interaction detected*")
+        monitoring.append("**Hepatic Function:** Monitor LFTs (AST, ALT, bilirubin) - *Rationale: Hepatotoxic interaction detected*")
     if 'hypoglycemia' in detected_risks:
-        monitoring.append("🍬 **Blood Glucose:** Monitor for hypoglycemia symptoms - *Rationale: Glucose-affecting interaction in DrugBank*")
+        monitoring.append("**Blood Glucose:** Monitor for hypoglycemia symptoms - *Rationale: Glucose-affecting interaction in DrugBank*")
     if 'cns_depression' in detected_risks:
-        monitoring.append("😴 **CNS Depression:** Monitor alertness, respiratory rate - *Rationale: CNS depressant combination detected*")
+        monitoring.append("**CNS Depression:** Monitor alertness, respiratory rate - *Rationale: CNS depressant combination detected*")
     if 'hyperkalemia' in detected_risks:
-        monitoring.append("⚡ **Electrolytes:** Monitor potassium levels - *Rationale: Hyperkalemia risk from interaction*")
+        monitoring.append("**Electrolytes:** Monitor potassium levels - *Rationale: Hyperkalemia risk from interaction*")
     
     if not monitoring:
-        monitoring.append("📋 **General:** Regular clinical assessment recommended")
+        monitoring.append("**General:** Regular clinical assessment recommended")
     
     monitoring.append("\n*Data sources: DrugBank Knowledge Graph*")
     
@@ -1913,46 +1913,55 @@ def reanalyze_with_selection(current_drugs_selected, alternatives_selected, prog
 
 def build_report(drugs, not_found, interactions, risk_level, risk_score, counts, 
                  shared_se, shared_proteins, alternatives_map, regimen_pri=None):
-    """Build compact, elegant DDI report with PRI/ARS metrics and collapsible sections"""
+    """Build clean, modern DDI report with PRI/ARS metrics"""
     
     drug_names = [d.get('name', 'Unknown').title() for d in drugs]
     
-    # Risk styling
+    # iOS-style risk colors with gradients
     risk_styles = {
-        'CRITICAL': ('', '#dc3545', 'Avoid this combination'),
-        'HIGH': ('', '#fd7e14', 'Use with extreme caution'),
-        'MODERATE': ('', '#ffc107', 'Monitor closely'),
-        'LOW': ('', '#28a745', 'Generally safe')
+        'CRITICAL': ('linear-gradient(135deg, #FF3B30 0%, #FF2D55 100%)', '#FFF5F5', '#FF3B30', 'Avoid this combination'),
+        'HIGH': ('linear-gradient(135deg, #FF9500 0%, #FF3B30 100%)', '#FFF8F0', '#FF9500', 'Use with extreme caution'),
+        'MODERATE': ('linear-gradient(135deg, #FFCC00 0%, #FF9500 100%)', '#FFFBF0', '#FF9500', 'Monitor closely'),
+        'LOW': ('linear-gradient(135deg, #34C759 0%, #30B0C7 100%)', '#F0FFF5', '#34C759', 'Generally safe')
     }
-    icon, color, advice = risk_styles.get(risk_level, ('', '#6c757d', 'Unknown'))
+    gradient, bg_color, text_color, advice = risk_styles.get(risk_level, ('linear-gradient(135deg, #8E8E93 0%, #636366 100%)', '#F5F5F7', '#8E8E93', 'Unknown'))
     
-    # === COMPACT HEADER with PRI ===
-    pri_summary = ""
+    # === iOS-STYLE RISK CARD ===
+    pri_display = ""
     if regimen_pri:
         avg_pri = regimen_pri.get('average_pri', 0)
-        pri_badge = f"<span style='background:#{'dc3545' if avg_pri > 0.5 else 'ffc107' if avg_pri >= 0.3 else '28a745'}; color:white; padding:2px 8px; border-radius:4px; font-size:0.85em;'>PRI: {avg_pri:.2f}</span>"
-        pri_summary = f" {pri_badge}"
+        pri_gradient = 'linear-gradient(135deg, #FF3B30 0%, #FF2D55 100%)' if avg_pri > 0.5 else 'linear-gradient(135deg, #FF9500 0%, #FFCC00 100%)' if avg_pri >= 0.3 else 'linear-gradient(135deg, #34C759 0%, #30B0C7 100%)'
+        pri_display = f"""<div style="display:flex; flex-direction:column; align-items:center; gap:4px; padding:12px 16px; background:rgba(0,0,0,0.03); border-radius:12px;">
+<span style="font-size:11px; font-weight:600; color:#8E8E93; text-transform:uppercase; letter-spacing:0.05em;">PRI Score</span>
+<span style="font-size:24px; font-weight:700; background:{pri_gradient}; -webkit-background-clip:text; -webkit-text-fill-color:transparent;">{avg_pri:.2f}</span>
+</div>"""
     
-    report = f"""<div style="text-align:center; padding:16px 0; border-bottom:2px solid {color}; margin-bottom:16px;">
-<h2 style="margin:8px 0 4px 0; color:{color};">{risk_level} RISK{pri_summary}</h2>
-<p style="margin:0; color:#666; font-size:0.95em;">{advice} • Score: {risk_score:.2f}</p>
+    report = f"""<div style="background:{bg_color}; border-radius:20px; padding:24px; margin-bottom:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;">
+<div>
+<div style="display:inline-flex; align-items:center; gap:8px; padding:8px 18px; background:{gradient}; border-radius:24px; margin-bottom:12px; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+<span style="font-size:14px; font-weight:700; letter-spacing:0.03em; color:white; text-transform:uppercase;">{risk_level} RISK</span>
 </div>
-
-**Analyzed:** {', '.join(drug_names)} ({len(drugs)} drugs)
+<p style="margin:0; color:#000; font-size:17px; font-weight:600;">{', '.join(drug_names)}</p>
+<p style="margin:6px 0 0 0; color:#8E8E93; font-size:14px;">{advice}</p>
+</div>
+{pri_display}
+</div>
+</div>
 """
     
     if not_found:
-        report += f"\n*Not found: {', '.join(not_found)}*"
+        report += f"\n<p style='color:#94a3b8; font-size:0.85rem;'>Not found: {', '.join(not_found)}</p>"
     
-    # === INTERACTIONS FOUND - Show each drug pair with severity ===
+    # === INTERACTIONS TABLE ===
     if interactions:
         severity_order = {'contraindicated': 0, 'major': 1, 'moderate': 2, 'minor': 3}
         sorted_interactions = sorted(interactions, 
             key=lambda x: severity_order.get(x.get('severity', '').lower().split()[0], 4))
         
-        report += f"\n\n### ⚠️ {len(interactions)} Interaction{'s' if len(interactions) != 1 else ''} Found\n"
-        report += "| Drug Pair | Severity | Clinical Effect |\n"
-        report += "|-----------|----------|----------------|\n"
+        report += f"\n\n### Interactions ({len(interactions)})\n"
+        report += "| Drug Pair | Severity | Effect |\n"
+        report += "|-----------|----------|--------|\n"
         
         for i in sorted_interactions:
             d1 = i.get('drug1_name', i.get('drug1_id', '?')).title()
@@ -1960,42 +1969,47 @@ def build_report(drugs, not_found, interactions, risk_level, risk_score, counts,
             sev = i.get('severity', 'Unknown')
             sev_lower = sev.lower()
             
-            # Severity badge with colors
+            # Clean severity labels
             if 'contraindicated' in sev_lower:
-                sev_badge = "🔴 **Contraindicated**"
+                sev_badge = "**Contraindicated**"
             elif 'major' in sev_lower:
-                sev_badge = "🟠 **Major**"
+                sev_badge = "**Major**"
             elif 'moderate' in sev_lower:
-                sev_badge = "🟡 Moderate"
+                sev_badge = "Moderate"
             else:
-                sev_badge = "🟢 Minor"
+                sev_badge = "Minor"
             
             desc = str(i.get('description', 'No description'))
-            # Truncate but keep meaningful content
-            if len(desc) > 120:
-                desc = desc[:117] + "..."
+            if len(desc) > 100:
+                desc = desc[:97] + "..."
             
-            report += f"| {d1} ↔ {d2} | {sev_badge} | {desc} |\n"
+            report += f"| {d1} + {d2} | {sev_badge} | {desc} |\n"
         
-        # === LLM-Generated Clinical Summary (with full KG data) ===
-        report += "\n### 📋 Clinical Summary\n"
+        # === Clinical Summary (Collapsible) ===
         llm_summary = generate_llm_summary(
             sorted_interactions, drug_names, risk_level, regimen_pri,
             resolved_drugs=drugs, shared_se=shared_se, shared_proteins=shared_proteins
         )
-        report += llm_summary
+        report += f"""
+
+<details open>
+<summary style="font-weight:600; font-size:15px; cursor:pointer; padding:12px 0;">Clinical Summary</summary>
+
+{llm_summary}
+
+</details>"""
     else:
-        report += f"\n\n### ✅ No Significant Interactions Found\nNo known drug-drug interactions detected between {', '.join(drug_names)} in our knowledge graph."
+        report += f"\n\n### No Interactions Found\nNo known drug-drug interactions detected between {', '.join(drug_names)}."
     
-    # === PRI RISK ASSESSMENT (always visible if available) ===
+    # === PRI RISK ASSESSMENT (collapsible) ===
     if regimen_pri and regimen_pri.get('drug_pris'):
-        report += "\n\n### 📊 Polypharmacy Risk Index (PRI)"
+        pri_content = ""
         
         # Show highest risk drug prominently
         if regimen_pri.get('highest_risk_drug'):
             highest = regimen_pri['highest_risk_drug']
             highest_pri = regimen_pri['max_pri']
-            report += f"\n**Highest Risk:** {highest.title()} (PRI: {highest_pri:.3f})"
+            pri_content += f"**Highest Risk:** {highest.title()} (PRI: {highest_pri:.3f})\n\n"
         
         # Summary counts
         high_count = regimen_pri.get('num_high_risk', 0)
@@ -2003,42 +2017,44 @@ def build_report(drugs, not_found, interactions, risk_level, risk_score, counts,
         if high_count > 0 or med_count > 0:
             risk_counts = []
             if high_count > 0:
-                risk_counts.append(f"🔴 {high_count} High Risk")
+                risk_counts.append(f"{high_count} High Risk")
             if med_count > 0:
-                risk_counts.append(f"🟡 {med_count} Medium Risk")
-            report += f"\n{' • '.join(risk_counts)}"
+                risk_counts.append(f"{med_count} Medium Risk")
+            pri_content += f"{' | '.join(risk_counts)}\n\n"
         
-        # Collapsible PRI details table
-        report += """
-
-<details>
-<summary>View PRI Details for All Drugs</summary>
-
-| Drug | PRI Score | Risk Level | Interactions | Severe |
+        # PRI details table
+        pri_content += """| Drug | PRI Score | Risk Level | Interactions | Severe |
 |------|-----------|------------|--------------|--------|"""
         for drug_name, pri_data in regimen_pri['drug_pris'].items():
-            risk_emoji = "🔴" if pri_data['risk_level'] == 'High Risk' else "🟡" if pri_data['risk_level'] == 'Medium Risk' else "🟢"
-            report += f"\n| {drug_name.title()} | {pri_data['pri']:.3f} | {risk_emoji} {pri_data['risk_level']} | {pri_data['num_interactions']} | {pri_data['num_severe']} |"
+            pri_content += f"\n| {drug_name.title()} | {pri_data['pri']:.3f} | {pri_data['risk_level']} | {pri_data['num_interactions']} | {pri_data['num_severe']} |"
+        
+        pri_content += """
+
+**Formula:** PRI = 0.25×Degree + 0.30×WeightedDegree + 0.20×Betweenness + 0.25×SeverityProfile
+**Thresholds:** High Risk (>0.5) • Medium Risk (0.3-0.5) • Lower Risk (<0.3)"""
         
         report += f"""
 
-**Formula:** PRI = 0.25×Degree + 0.30×WeightedDegree + 0.20×Betweenness + 0.25×SeverityProfile
-**Thresholds:** High Risk (>0.5) • Medium Risk (0.3-0.5) • Lower Risk (<0.3)
+<details>
+<summary style="font-weight:600; font-size:15px; cursor:pointer; padding:12px 0;">Polypharmacy Risk Index</summary>
+
+{pri_content}
 
 </details>"""
     
-    # === LLM-Generated Alternatives Recommendations ===
+    # === LLM-Generated Alternatives Recommendations (Collapsible) ===
     if alternatives_map:
         alternatives_text = generate_llm_alternatives(alternatives_map, drug_names, interactions)
         if alternatives_text:
             report += f"""
 
-### 💊 Safer Alternative Recommendations
+<details>
+<summary style="font-weight:600; font-size:15px; cursor:pointer; padding:12px 0;">Alternative Recommendations</summary>
 
 {alternatives_text}
 
-<details>
-<summary>View ARS Score Details</summary>
+<details style="margin-top:12px;">
+<summary style="font-size:13px;">View ARS Score Details</summary>
 
 | Original Drug | Alternative | ARS Score | Severity Reduction | PRI Improvement |
 |---------------|-------------|-----------|-------------------|-----------------|"""
@@ -2057,9 +2073,11 @@ def build_report(drugs, not_found, interactions, risk_level, risk_score, counts,
 **ARS Formula:** ARS = 0.70×(Severity Reduction) + 0.30×(PRI Improvement)
 *Higher ARS scores indicate better alternatives that reduce both interaction severity and overall polypharmacy network risk.*
 
+</details>
+
 </details>"""
     
-    # === LLM-Generated Monitoring Recommendations ===
+    # === LLM-Generated Monitoring Recommendations (Collapsible) ===
     if interactions:
         monitoring_recommendations = generate_llm_monitoring(
             interactions, drug_names, shared_se, shared_proteins
@@ -2067,10 +2085,12 @@ def build_report(drugs, not_found, interactions, risk_level, risk_score, counts,
         if monitoring_recommendations:
             report += f"""
 
-### 🏥 Recommended Monitoring
+<details>
+<summary style="font-weight:600; font-size:15px; cursor:pointer; padding:12px 0;">Monitoring Recommendations</summary>
 
 {monitoring_recommendations}
-"""
+
+</details>"""
     
     # === COLLAPSIBLE: Drug Details ===
     report += """
@@ -2198,110 +2218,282 @@ def chat(message, history, model_name):
 
 def create_app():
     
-    # Custom CSS for full-width 3-column layout
+    # Beautiful iOS-style CSS with vibrant colors
     custom_css = """
+    :root {
+        --blue: #007AFF;
+        --green: #34C759;
+        --red: #FF3B30;
+        --orange: #FF9500;
+        --gray-1: #F2F2F7;
+        --gray-2: #E5E5EA;
+        --gray-3: #8E8E93;
+        --text: #1C1C1E;
+        --white: #FFFFFF;
+    }
+    
+    /* Full width layout */
     .gradio-container { 
         max-width: 100% !important; 
-        width: 100% !important;
-        padding: 20px 40px !important;
-        margin: 0 !important;
+        background: var(--gray-1) !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
     }
-    .main { max-width: 100% !important; }
-    .contain { max-width: 100% !important; }
-    .wrap { max-width: 100% !important; }
-    .section-title { font-size: 1.1em; font-weight: 600; color: #4a5568; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #667eea; }
+    .main { max-width: 100% !important; padding: 20px 30px !important; }
+    .contain, .wrap { max-width: 100% !important; }
     
-    /* Enhanced Button Styling */
+    /* Section title cards */
+    .section-title { 
+        display: block !important;
+        font-size: 13px !important; 
+        font-weight: 700 !important; 
+        color: var(--white) !important;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 20px !important; 
+        padding: 12px 18px !important;
+        background: linear-gradient(135deg, #5AC8FA 0%, #AF52DE 100%) !important;
+        border-radius: 10px !important;
+        box-shadow: 0 3px 10px rgba(90,200,250,0.3) !important;
+    }
+    
+    /* Clean buttons */
     .gr-button {
         border-radius: 10px !important;
         font-weight: 600 !important;
-        letter-spacing: 0.3px !important;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+        font-size: 14px !important;
+        padding: 10px 20px !important;
     }
-    .gr-button:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
-    }
-    .gr-button:active {
-        transform: translateY(0) !important;
-    }
-    
-    /* Primary buttons - vibrant gradient */
     .gr-button-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-        border: none !important;
+        background: var(--blue) !important;
         color: white !important;
     }
-    .gr-button-primary:hover {
-        background: linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%) !important;
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4) !important;
-    }
-    
-    /* Secondary buttons - clean outline style */
     .gr-button-secondary {
-        background: white !important;
-        border: 2px solid #e2e8f0 !important;
-        color: #4a5568 !important;
+        background: var(--white) !important;
+        color: var(--blue) !important;
+        border: 1px solid var(--blue) !important;
     }
-    .gr-button-secondary:hover {
-        background: #f7fafc !important;
-        border-color: #667eea !important;
-        color: #667eea !important;
-    }
-    
-    /* Stop/danger buttons - for clear/reset actions */
     .gr-button-stop {
-        background: white !important;
-        border: 2px solid #fc8181 !important;
-        color: #c53030 !important;
+        background: var(--white) !important;
+        color: var(--red) !important;
+        border: 1px solid var(--red) !important;
     }
-    .gr-button-stop:hover {
-        background: #fff5f5 !important;
-        border-color: #e53e3e !important;
-        box-shadow: 0 4px 12px rgba(229, 62, 62, 0.2) !important;
-    }
-    
-    /* Large buttons */
-    .gr-button-lg {
+    button[size="lg"] {
         padding: 14px 28px !important;
-        font-size: 1.05em !important;
+        font-size: 15px !important;
     }
     
-    /* Small buttons */
-    .gr-button-sm {
-        padding: 8px 16px !important;
-        font-size: 0.9em !important;
+    /* Form inputs */
+    .gr-textbox, .gr-dropdown { 
+        border-radius: 10px !important;
+        border: 1px solid var(--gray-2) !important;
+        background: var(--white) !important;
+    }
+    .gr-textbox:focus-within, .gr-dropdown:focus-within {
+        border-color: var(--blue) !important;
     }
     
-    /* Chat send button - compact and accent */
-    .chat-send-btn {
-        background: linear-gradient(135deg, #38b2ac 0%, #319795 100%) !important;
+    /* Three-column panels - remove Gradio default boxes */
+    .column-panel,
+    .gr-column,
+    .gradio-column,
+    [class*="column"],
+    .gr-row > div,
+    .gr-block { 
+        background: transparent !important;
+        box-shadow: none !important;
+        border: none !important;
+        border-radius: 0 !important;
     }
-    .chat-send-btn:hover {
-        background: linear-gradient(135deg, #2c9f9a 0%, #2a8584 100%) !important;
-        box-shadow: 0 6px 20px rgba(56, 178, 172, 0.4) !important;
+    /* Keep padding on main columns only */
+    .gr-row > div {
+        padding: 0 12px !important;
+    }
+    .gr-row > div:first-child {
+        padding-left: 0 !important;
+    }
+    .gr-row > div:last-child {
+        padding-right: 0 !important;
     }
     
-    .gr-textbox { border-radius: 8px !important; }
-    details { background: #f8f9fa; padding: 12px; border-radius: 8px; margin: 8px 0; }
-    details summary { cursor: pointer; font-weight: 600; color: #4a5568; }
-    details summary:hover { color: #667eea; }
-    .column-panel { 
-        min-height: 600px; 
-        border: 1px solid #e2e8f0; 
+    /* Collapsible sections */
+    details { 
+        background: #f8f9fa;
+        padding: 14px 18px; 
         border-radius: 12px; 
-        padding: 20px !important;
-        background: #fafbfc;
+        margin: 12px 0; 
+        border: 1px solid var(--gray-2);
     }
+    details[open] {
+        background: var(--white);
+        border-color: var(--blue);
+    }
+    details summary { 
+        cursor: pointer; 
+        font-weight: 600; 
+        color: var(--blue);
+        font-size: 14px;
+        list-style: none;
+    }
+    details summary::-webkit-details-marker { display: none; }
+    
+    /* Chatbot */
+    .chatbot { 
+        border-radius: 16px !important; 
+        border: 1px solid var(--gray-2) !important;
+        background: linear-gradient(180deg, #fafafa 0%, #f5f5f7 100%) !important;
+    }
+    .chatbot .message, .chatbot .message p, .chatbot .message span,
+    .chatbot .wrap, .chatbot .wrap p, .chatbot .wrap span,
+    .chatbot [data-testid="bot"], .chatbot [data-testid="user"],
+    .chatbot .prose, .chatbot .prose p, .chatbot .prose span,
+    .chatbot .markdown, .chatbot .markdown p {
+        font-size: 10px !important;
+        line-height: 1.35 !important;
+        font-weight: 400 !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif !important;
+    }
+    .chatbot .message {
+        border-radius: 18px !important;
+        padding: 6px 10px !important;
+        max-width: 85% !important;
+    }
+    .chatbot .user, .chatbot .user p, .chatbot [data-testid="user"] {
+        background: linear-gradient(135deg, #5AC8FA 0%, #AF52DE 100%) !important;
+        color: white !important;
+        font-size: 10px !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif !important;
+    }
+    .chatbot .bot, .chatbot .bot p, .chatbot [data-testid="bot"] {
+        background: var(--white) !important;
+        border: 1px solid var(--gray-2) !important;
+        color: #1D1D1F !important;
+        font-size: 10px !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif !important;
+    }
+    
+    /* Tables */
+    table { 
+        width: 100%; 
+        border-collapse: collapse;
+        font-size: 13px;
+        margin: 16px 0;
+        border-radius: 12px;
+        overflow: hidden;
+        background: var(--white);
+    }
+    th { 
+        background: #f8f9fa;
+        font-weight: 600; 
+        text-align: left;
+        padding: 12px 16px;
+        color: var(--blue);
+        font-size: 11px;
+        text-transform: uppercase;
+        border-bottom: 2px solid var(--blue);
+    }
+    td { 
+        padding: 12px 16px; 
+        border-bottom: 1px solid var(--gray-2);
+    }
+    tr:last-child td { border-bottom: none; }
+    
+    /* Tabs */
+    .tab-nav {
+        background: var(--gray-1) !important;
+        border-radius: 8px !important;
+        padding: 3px !important;
+    }
+    .tab-nav button {
+        font-weight: 600 !important;
+        font-size: 13px !important;
+        border-radius: 6px !important;
+        padding: 8px 16px !important;
+        border: none !important;
+        background: transparent !important;
+    }
+    .tab-nav button.selected {
+        background: var(--white) !important;
+        color: var(--blue) !important;
+    }
+    
+    /* Accordion */
+    .accordion { 
+        border-radius: 12px !important;
+        border: 1px solid var(--gray-2) !important;
+        background: var(--white) !important;
+    }
+    
+    /* Checkboxes */
+    .gr-checkbox-group label {
+        font-size: 14px !important;
+        padding: 10px 14px !important;
+        border-radius: 8px !important;
+    }
+    
+    /* Typography */
+    .markdown-text h3 {
+        font-size: 16px !important;
+        font-weight: 600 !important;
+        margin-top: 20px !important;
+        margin-bottom: 10px !important;
+        color: var(--text) !important;
+    }
+    .markdown-text p {
+        line-height: 1.6 !important;
+    }
+    
+    /* Links */
+    a { color: var(--blue) !important; text-decoration: none !important; }
+    
+    /* Image upload */
+    .gr-image {
+        border-radius: 12px !important;
+        border: 2px dashed var(--blue) !important;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e8f4fd 100%) !important;
+        min-height: 220px !important;
+        overflow: visible !important;
+    }
+    .gr-image:hover {
+        border-color: #AF52DE !important;
+        background: linear-gradient(135deg, #e8f4fd 0%, #f3e8ff 100%) !important;
+    }
+    .gr-image img {
+        max-height: 180px !important;
+        object-fit: contain !important;
+        border-radius: 8px !important;
+    }
+    .gr-image [data-testid="image"], .gr-image .image-container,
+    .gr-image .upload-container, .gr-image .icon-buttons,
+    .gr-image .source-container, .gr-image .source-icon {
+        min-height: auto !important;
+        overflow: visible !important;
+        display: flex !important;
+        visibility: visible !important;
+    }
+    .gr-image .icon-buttons {
+        position: relative !important;
+        z-index: 10 !important;
+    }
+    /* Hide upload icon */
+    .gr-image svg,
+    .gr-image .upload-icon,
+    .gr-image [data-testid="upload-icon"],
+    .gr-image .icon {
+        display: none !important;
+    }
+    
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--gray-1); }
+    ::-webkit-scrollbar-thumb { background: var(--gray-3); border-radius: 3px; }
     """
     
     with gr.Blocks(title="DDI Risk Analyzer", css=custom_css) as app:
         
-        gr.Markdown("""
-        <div style="text-align:center; padding:16px 0; margin-bottom:24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px;">
-        <h1 style="margin:0; font-size:1.8em; color:#fff;">Drug Regimen Analysis</h1>
-        <p style="margin:6px 0 0 0; color:#e0e0e0; font-size:1em;">Knowledge Graph-powered interaction detection & recommendations</p>
+        gr.HTML("""
+        <div style="background:linear-gradient(135deg, #5AC8FA 0%, #AF52DE 100%); border-radius:20px; padding:32px 40px; margin-bottom:24px; box-shadow:0 8px 32px rgba(90,200,250,0.3); text-align:center;">
+        <h1 style="margin:0; font-size:32px; font-weight:800; color:#fff; letter-spacing:-0.5px;">Drug Interaction Analyzer</h1>
+        <p style="margin:10px 0 0 0; color:rgba(255,255,255,0.9); font-size:16px; font-weight:500;">AI-based DDI Risk Analysis and Alternative Recommendation</p>
         </div>
         """)
         
@@ -2311,114 +2503,122 @@ def create_app():
             # COLUMN 1: Drug Input (List, Narrative, or Image)
             # ============================================================
             with gr.Column(scale=1, min_width=300):
-                with gr.Group(elem_classes=["column-panel"]):
-                    gr.Markdown("### 1. Enter Medications", elem_classes=["section-title"])
-                    
-                    with gr.Tabs():
-                        # Tab 1: Drug List
-                        with gr.Tab("Drug List"):
-                            drug_input = gr.Textbox(
-                                label="Drug Names",
-                                placeholder="warfarin, aspirin, metoprolol, lisinopril",
-                                lines=3,
-                                info="Separate with commas"
-                            )
-                        
-                        # Tab 2: Narrative Description
-                        with gr.Tab("Narrative"):
-                            narrative_input = gr.Textbox(
-                                label="Describe Your Medications",
-                                placeholder="I take cardace 5mg in the morning and aspirin 81mg at night for my heart condition...",
-                                lines=4,
-                                info="Describe in your own words"
-                            )
-                            extract_narrative_btn = gr.Button("Extract Drugs from Text", variant="secondary")
-                            narrative_status = gr.Markdown("*Enter a description of your medications*")
-                        
-                        # Tab 3: Image Upload
-                        with gr.Tab("Image"):
-                            image_input = gr.Image(
-                                label="Upload Prescription/Medication Photo",
-                                type="pil",
-                                height=150
-                            )
-                            extract_image_btn = gr.Button("Extract Drugs from Image", variant="secondary")
-                            image_status = gr.Markdown("*Upload a photo of your prescription or medication bottles*")
-                    
-                    with gr.Row():
-                        quick_check_btn = gr.Button("Check Drugs", variant="primary")
-                        clear_btn = gr.Button("Clear All", variant="stop")
-                    
-                    # Drug identification preview
-                    preview_output = gr.Markdown(
-                        value="*Enter drug names and click 'Check Drugs' to identify and validate*"
-                    )
-                    
-                    # Editable confirmed drugs list (shows after checking)
-                    with gr.Group(visible=False) as edit_group:
-                        gr.Markdown("**Confirmed Drugs** (edit, add, or remove)")
-                        confirmed_drugs = gr.Textbox(
-                            label="",
-                            placeholder="Edit drug names here...",
-                            lines=2,
-                            info="Separate with commas. Edit and click 'Re-check' to validate changes."
+                gr.Markdown("INPUT", elem_classes=["section-title"])
+                
+                with gr.Tabs():
+                    # Tab 1: Drug List
+                    with gr.Tab("Drugs"):
+                        drug_input = gr.Textbox(
+                            label="Enter medications",
+                            placeholder="warfarin, aspirin, metoprolol, lisinopril",
+                            lines=3,
+                            info="Enter drug names separated by commas"
                         )
-                        with gr.Row():
-                            recheck_btn = gr.Button("Re-check List", variant="secondary", size="sm")
-                            use_list_btn = gr.Button("Use This List", variant="primary", size="sm")
                     
-                    # Edit panel (shows after analysis for alternatives)
-                    with gr.Accordion("Safer Alternatives", open=True, visible=False) as selection_panel:
-                        gr.Markdown("**Current Drugs** (uncheck to remove)")
-                        current_drugs_check = gr.CheckboxGroup(choices=[], value=[], label="", interactive=True)
-                        gr.Markdown("**Suggested Alternatives** (check to add)")
-                        alternatives_check = gr.CheckboxGroup(choices=[], value=[], label="", interactive=True)
-                        
-                        reanalyze_btn = gr.Button("Re-analyze with Changes", variant="primary")
-                        selection_status = gr.Markdown("")
+                    # Tab 2: Narrative Description
+                    with gr.Tab("Text"):
+                        narrative_input = gr.Textbox(
+                            label="Describe your medications",
+                            placeholder="I take cardace 5mg in the morning and aspirin 81mg at night for my heart condition...",
+                            lines=4,
+                            info="We'll extract drug names automatically"
+                        )
+                        extract_narrative_btn = gr.Button("Extract Drugs", variant="secondary")
+                        narrative_status = gr.Markdown("*Describe your medications in your own words*")
                     
-                    analyze_btn = gr.Button("Generate Report", variant="primary", size="lg")
+                    # Tab 3: Image Upload
+                    with gr.Tab("Photo"):
+                        image_input = gr.Image(
+                            label="Upload prescription or medication photo",
+                            type="pil",
+                            height=240,
+                            sources=["upload", "clipboard"],
+                            show_download_button=False,
+                            show_share_button=False
+                        )
+                        extract_image_btn = gr.Button("Extract Drugs from Photo", variant="secondary")
+                        image_status = gr.Markdown("*Upload or paste a photo of your prescription*")
+                
+                with gr.Row():
+                    quick_check_btn = gr.Button("Validate", variant="primary")
+                    clear_btn = gr.Button("Clear", variant="stop")
+                
+                # Drug identification preview
+                preview_output = gr.Markdown(
+                    value="*Enter medications and click Validate to identify them*"
+                )
+                
+                # Editable confirmed drugs list (shows after checking)
+                with gr.Group(visible=False) as edit_group:
+                    gr.Markdown("**Confirmed medications**")
+                    confirmed_drugs = gr.Textbox(
+                        label="",
+                        placeholder="Edit drug names here...",
+                        lines=2,
+                        info="Edit and click Re-validate to update"
+                    )
+                    with gr.Row():
+                        recheck_btn = gr.Button("Re-validate", variant="secondary", size="sm")
+                        use_list_btn = gr.Button("Use List", variant="primary", size="sm")
+                
+                # Edit panel (shows after analysis for alternatives)
+                with gr.Accordion("Alternative Options", open=True, visible=False) as selection_panel:
+                    gr.Markdown("**Current medications**")
+                    current_drugs_check = gr.CheckboxGroup(choices=[], value=[], label="", interactive=True)
+                    gr.Markdown("**Suggested alternatives**")
+                    alternatives_check = gr.CheckboxGroup(choices=[], value=[], label="", interactive=True)
+                    
+                    reanalyze_btn = gr.Button("Re-analyze", variant="primary")
+                    selection_status = gr.Markdown("")
+                
+                analyze_btn = gr.Button("Analyze Interactions", variant="primary", size="lg")
             
             # ============================================================
             # COLUMN 2: Report
             # ============================================================
-            with gr.Column(scale=1, min_width=300):
-                with gr.Group(elem_classes=["column-panel"]):
-                    gr.Markdown("### 2. Analysis Report", elem_classes=["section-title"])
-                    
-                    report_output = gr.Markdown(
-                        value="*Click 'Generate Report' to analyze drug interactions*"
-                    )
+            with gr.Column(scale=3, min_width=400):
+                gr.Markdown("REPORT", elem_classes=["section-title"])
+                
+                report_output = gr.Markdown(
+                    value="*Enter medications and click Analyze Interactions*"
+                )
             
             # ============================================================
             # COLUMN 3: Chat Assistant
             # ============================================================
-            with gr.Column(scale=1, min_width=300):
-                with gr.Group(elem_classes=["column-panel"]):
-                    gr.Markdown("### 3. Chat Assistant", elem_classes=["section-title"])
-                    
-                    model_select = gr.Dropdown(
-                        choices=list(LLMClient.MODELS.keys()),
-                        value="Llama3",
-                        label="Model"
-                    )
-                    
-                    chatbot = gr.Chatbot(
-                        height=350, 
+            with gr.Column(scale=2, min_width=350):
+                gr.Markdown("ASSISTANT", elem_classes=["section-title"])
+                
+                gr.Markdown("""<div style="display:flex; align-items:center; gap:8px; padding:8px 12px; background:#f8f9fa; border-radius:8px; margin-bottom:12px;">
+<div style="width:6px; height:6px; background:#34C759; border-radius:50%;"></div>
+<span style="font-size:11px; color:#3C3C43; font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;">Llama 3 7B</span>
+</div>""")
+                
+                # Hidden dropdown for backend compatibility
+                model_select = gr.Dropdown(
+                    choices=list(LLMClient.MODELS.keys()),
+                    value="Llama3",
+                    visible=False
+                )
+                
+                chatbot = gr.Chatbot(
+                    height=400, 
+                    label="",
+                    show_label=False,
+                    avatar_images=(None, None),
+                    bubble_full_width=False
+                )
+                
+                with gr.Row():
+                    chat_input = gr.Textbox(
+                        placeholder="Ask about drug interactions, alternatives, or mechanisms...",
                         label="",
                         show_label=False,
-                        avatar_images=(None, None)
+                        lines=1,
+                        scale=4,
+                        container=False
                     )
-                    
-                    with gr.Row():
-                        chat_input = gr.Textbox(
-                            placeholder="Ask about mechanisms, interactions, alternatives...",
-                            label="",
-                            show_label=False,
-                            lines=1,
-                            scale=4
-                        )
-                        send_btn = gr.Button("Send", variant="primary", scale=1, elem_classes=["chat-send-btn"])
+                    send_btn = gr.Button("Send", variant="primary", scale=1)
         
         # Event handlers
         quick_check_btn.click(
@@ -2495,17 +2695,17 @@ def create_app():
                 "",  # drug_input
                 "",  # narrative_input 
                 None,  # image_input
-                "*Enter drug names and click 'Check Drugs' to identify and validate*",  # preview_output
+                "*Enter medications and click Validate to identify them*",  # preview_output
                 "",  # confirmed_drugs
                 gr.update(visible=False),  # edit_group
-                "*Click 'Generate Report' to analyze drug interactions*",  # report_output
+                "*Enter medications and click Analyze Interactions*",  # report_output
                 [],  # chatbot
                 gr.update(visible=False),  # selection_panel
                 gr.update(choices=[], value=[]),  # current_drugs_check
                 gr.update(choices=[], value=[]),  # alternatives_check
                 "",  # selection_status
-                "*Enter a description of your medications*",  # narrative_status
-                "*Upload a photo of your prescription or medication bottles*"  # image_status
+                "*Describe your medications in your own words*",  # narrative_status
+                "*Upload or paste a photo of your prescription*"  # image_status
             )
         
         clear_btn.click(
