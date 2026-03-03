@@ -38,9 +38,9 @@ logger = logging.getLogger(__name__)
 NS = {'db': 'http://www.drugbank.ca'}
 
 
-# =============================================================================
+# ---
 # DATA CLASSES WITH PROVENANCE
-# =============================================================================
+# ---
 
 @dataclass
 class Provenance:
@@ -159,9 +159,9 @@ class CategoryNode:
     provenance: Optional[Provenance] = None
 
 
-# =============================================================================
+# ---
 # EDGE TYPES WITH PROVENANCE
-# =============================================================================
+# ---
 
 @dataclass
 class DDIEdge:
@@ -235,9 +235,9 @@ class SNPEffectData:
     provenance: Optional[Provenance] = None
 
 
-# =============================================================================
+# ---
 # FACT-BASED KNOWLEDGE GRAPH BUILDER
-# =============================================================================
+# ---
 
 class FactBasedKGBuilder:
     """
@@ -283,9 +283,9 @@ class FactBasedKGBuilder:
             'sources': defaultdict(int),
         }
     
-    # =========================================================================
+    # ---
     # STEP 1: Load CSV to get source drug identifiers
-    # =========================================================================
+    # ---
     
     def load_csv_identifiers(self) -> None:
         """Load drug identifiers from the source CSV file."""
@@ -348,9 +348,9 @@ class FactBasedKGBuilder:
         logger.info(f"  Found {len(self.csv_drug_names)} unique drug names")
         logger.info(f"  Found {len(self.ddi_edges)} DDI edges from CSV")
     
-    # =========================================================================
+    # ---
     # STEP 2: Parse DrugBank XML for exact ID matches
-    # =========================================================================
+    # ---
     
     def _get_text(self, elem, tag: str) -> str:
         """Safely get text from XML element."""
@@ -673,9 +673,9 @@ class FactBasedKGBuilder:
             self.snp_effects.append(snp)
             self.stats['sources']['DrugBank-snp'] += 1
     
-    # =========================================================================
+    # ---
     # STEP 3: Integrate SIDER using exact drug name matching
-    # =========================================================================
+    # ---
     
     def integrate_sider(self, sider_dir: str = "external_data/sider") -> None:
         """Load SIDER side effects using exact drug name matching."""
@@ -768,9 +768,9 @@ class FactBasedKGBuilder:
         except Exception as e:
             logger.error(f"Error loading SIDER: {e}")
     
-    # =========================================================================
+    # ---
     # STEP 4: Integrate CTD using CAS number or drug name
-    # =========================================================================
+    # ---
     
     def integrate_ctd(self, ctd_dir: str = "external_data/ctd") -> None:
         """Load CTD drug-disease associations using CAS or drug name matching."""
@@ -857,9 +857,9 @@ class FactBasedKGBuilder:
         except Exception as e:
             logger.error(f"Error loading CTD: {e}")
     
-    # =========================================================================
+    # ---
     # STEP 5: Build NetworkX Graph
-    # =========================================================================
+    # ---
     
     def build_graph(self) -> nx.MultiDiGraph:
         """Build NetworkX graph with all data."""
@@ -1005,9 +1005,9 @@ class FactBasedKGBuilder:
         
         return G
     
-    # =========================================================================
+    # ---
     # STEP 6: Export with full provenance
-    # =========================================================================
+    # ---
     
     def get_statistics(self) -> Dict:
         """Get comprehensive statistics."""
@@ -1280,9 +1280,9 @@ class FactBasedKGBuilder:
         logger.info("  Export complete!")
 
 
-# =============================================================================
+# ---
 # MAIN
-# =============================================================================
+# ---
 
 def main():
     """Build fact-based DDI Knowledge Graph."""

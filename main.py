@@ -3,7 +3,7 @@
 AI-based Polypharmacy Risk-aware Drug Recommender System
 Main Entry Point
 
-This script demonstrates the agentic architecture for drug-drug interaction
+This script demonstrates the modular architecture for drug-drug interaction
 analysis and polypharmacy risk assessment.
 
 Usage:
@@ -40,7 +40,7 @@ from datetime import datetime
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
-from agents import OrchestratorAgent, AgentStatus
+from modules import Orchestrator, PipelineStatus
 
 
 class PolypharmacyAnalyzer:
@@ -116,20 +116,20 @@ class PolypharmacyAnalyzer:
             use_llm: Use BioMistral-7B for explanations (requires Ollama)
         """
         print("=" * 60)
-        print("🏥 AI-based Polypharmacy Risk-aware Recommender System")
+        print("AI-based Polypharmacy Risk-aware Recommender System")
         print("=" * 60)
         print()
         
         # Load data
-        print(f"📂 Loading DDI database from: {self.data_path}")
+        print(f"Loading DDI database from: {self.data_path}")
         self.df = pd.read_csv(self.data_path)
-        print(f"   ✓ Loaded {len(self.df):,} drug-drug interactions")
+        print(f"   [OK] Loaded {len(self.df):,} drug-drug interactions")
         print()
         
         self.use_llm = use_llm
         
         # Initialize orchestrator
-        self.orchestrator = OrchestratorAgent(verbose=self.verbose)
+        self.orchestrator = Orchestrator(verbose=self.verbose)
         self.orchestrator.initialize(
             self.df, 
             train_severity_model=train_model,
@@ -182,13 +182,13 @@ class PolypharmacyAnalyzer:
             return
         
         print("\n" + "=" * 60)
-        print("🎯 MULTI-OBJECTIVE DRUG RECOMMENDATIONS")
+        print("MULTI-OBJECTIVE DRUG RECOMMENDATIONS")
         print("   (Paper Methodology: PRI + Centrality + Phenotype)")
         print("=" * 60)
         
         # Overall risk
         overall = mo_recs.get('overall_risk', {})
-        print(f"\n📊 Overall Polypharmacy Risk:")
+        print(f"\nOverall Polypharmacy Risk:")
         print(f"   • Risk Level: {overall.get('level', 'N/A')}")
         print(f"   • Risk Score: {overall.get('score', 0):.4f}")
         print(f"   • Total Interactions: {overall.get('total_interactions', 0)}")
@@ -202,7 +202,7 @@ class PolypharmacyAnalyzer:
         # Recommendations
         recs = mo_recs.get('recommendations', [])
         if recs:
-            print(f"\n💊 Prioritized Replacement Recommendations:")
+            print(f"\nPrioritized Replacement Recommendations:")
             print("-" * 50)
             
             for i, rec in enumerate(recs, 1):
@@ -214,7 +214,7 @@ class PolypharmacyAnalyzer:
                 print(f"     Severe Interactions: {rec.get('severe_interactions_in_list', 0)}")
                 
                 if best_alt:
-                    print(f"\n     ✅ Best Alternative: {best_alt.get('drug_name', 'N/A')}")
+                    print(f"\n     Best Alternative: {best_alt.get('drug_name', 'N/A')}")
                     print(f"        • ATC Match: {best_alt.get('atc_match_type', 'N/A')}")
                     print(f"        • Multi-Objective Score: {best_alt.get('multi_objective_score', 0):.4f}")
                     
@@ -231,7 +231,7 @@ class PolypharmacyAnalyzer:
                     if introduced:
                         print(f"        • Phenotypes Introduced: {', '.join(introduced)}")
                 else:
-                    print(f"     ⚠️ No suitable alternative found")
+                    print(f"     No suitable alternative found")
                 
                 # Show other alternatives
                 all_alts = rec.get('all_alternatives', [])[1:3]  # Skip best, show next 2
@@ -243,7 +243,7 @@ class PolypharmacyAnalyzer:
         # Summary
         summary = mo_recs.get('summary', {})
         if summary:
-            print(f"\n📈 Summary:")
+            print(f"\nSummary:")
             print(f"   • Drugs Analyzed: {summary.get('drugs_analyzed', 0)}")
             print(f"   • Drugs with Alternatives: {summary.get('drugs_with_alternatives', 0)}")
             print(f"   • Estimated Risk Reduction: {summary.get('estimated_risk_reduction', 0):.4f}")
@@ -260,7 +260,7 @@ class PolypharmacyAnalyzer:
             return
         
         print("\n" + "=" * 60)
-        print("📊 POLYPHARMACY RISK INDEX (PRI) ANALYSIS")
+        print("POLYPHARMACY RISK INDEX (PRI) ANALYSIS")
         print("   (Paper Methodology: Centrality Metrics)")
         print("=" * 60)
         
@@ -279,7 +279,7 @@ class PolypharmacyAnalyzer:
         # Highlight highest risk
         highest_risk = pipeline_results.get('highest_risk_drug')
         if highest_risk:
-            print(f"\n⚠️ Highest Risk Contributor: {highest_risk[0].title()} (PRI: {highest_risk[1]:.4f})")
+            print(f"\nHighest Risk Contributor: {highest_risk[0].title()} (PRI: {highest_risk[1]:.4f})")
         
         print("\n" + "=" * 60)
     
@@ -294,25 +294,25 @@ class PolypharmacyAnalyzer:
             clinical_path = dir_path / f"{base_path}_clinical.txt"
             with open(clinical_path, 'w') as f:
                 f.write(pipeline_results.get('clinical_report', ''))
-            print(f"✓ Clinical report saved to: {clinical_path}")
+            print(f"[OK] Clinical report saved to: {clinical_path}")
         
         if format in ['patient', 'all']:
             patient_path = dir_path / f"{base_path}_patient.txt"
             with open(patient_path, 'w') as f:
                 f.write(pipeline_results.get('patient_summary', ''))
-            print(f"✓ Patient summary saved to: {patient_path}")
+            print(f"[OK] Patient summary saved to: {patient_path}")
         
         if format in ['json', 'all']:
             import json
             json_path = dir_path / f"{base_path}_structured.json"
             with open(json_path, 'w') as f:
                 json.dump(pipeline_results.get('structured_output', {}), f, indent=2)
-            print(f"✓ Structured output saved to: {json_path}")
+            print(f"[OK] Structured output saved to: {json_path}")
     
     def interactive_mode(self):
         """Run in interactive mode"""
         print("\n" + "=" * 60)
-        print("🔄 Interactive Mode")
+        print("Interactive Mode")
         print("   (Paper Methodology: DDI Network + PRI + Multi-Objective)")
         print("=" * 60)
         print("\nCommands:")
@@ -327,7 +327,7 @@ class PolypharmacyAnalyzer:
         
         while True:
             try:
-                user_input = input("\n💊 Enter drugs or command: ").strip()
+                user_input = input("\nEnter drugs or command: ").strip()
                 
                 if not user_input:
                     continue
@@ -377,7 +377,7 @@ class PolypharmacyAnalyzer:
                     sample_name = parts[1].strip()
                     if sample_name in self.SAMPLE_DRUG_LISTS:
                         drugs = self.SAMPLE_DRUG_LISTS[sample_name]
-                        print(f"\n📋 Using sample '{sample_name}': {', '.join(drugs)}")
+                        print(f"\nUsing sample '{sample_name}': {', '.join(drugs)}")
                         result = self.analyze(drugs)
                         self.print_clinical_report(result)
                         self.print_multi_objective_recommendations(result)
@@ -517,7 +517,7 @@ Examples:
             # Get drug list
             if args.sample:
                 drugs = PolypharmacyAnalyzer.SAMPLE_DRUG_LISTS[args.sample]
-                print(f"\n📋 Using sample '{args.sample}': {', '.join(drugs)}")
+                print(f"\nUsing sample '{args.sample}': {', '.join(drugs)}")
             else:
                 drugs = [d.strip() for d in args.drugs.split(',')]
             
@@ -550,16 +550,16 @@ Examples:
             analyzer.print_clinical_report(result)
             
             print("\n" + "=" * 60)
-            print("💡 Tip: Use --interactive mode or --drugs to analyze your own medications")
+            print("Tip: Use --interactive mode or --drugs to analyze your own medications")
             print("   Example: python main.py --drugs 'Warfarin,Aspirin,Metoprolol'")
             print("=" * 60)
             
     except FileNotFoundError as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
         print("   Use --data-path to specify the DDI data file location.")
         sys.exit(1)
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

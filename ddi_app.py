@@ -25,9 +25,7 @@ try:
 except ImportError:
     HAS_OCR = False
 
-# ============================================================
 # Knowledge Graph Database with Alternative Recommendations
-# ============================================================
 
 class KnowledgeGraph:
     """Drug-Drug Interaction Knowledge Graph with Alternative Drug Finder"""
@@ -358,10 +356,8 @@ class KnowledgeGraph:
         alternatives.sort(key=lambda x: -x['risk_reduction'])
         return alternatives[:max_alternatives]
     
-    # ============================================================
     # Polypharmacy Risk Index (PRI) Calculations
     # Based on publication_polypharmacy_alternatives/methods_brief_simple.tex
-    # ============================================================
     
     def _compute_network_stats(self):
         """Compute network-wide statistics for PRI normalization (called once on load)"""
@@ -637,9 +633,7 @@ class KnowledgeGraph:
         return alternatives[:max_alternatives]
 
 
-# ============================================================
 # LLM Client
-# ============================================================
 
 class LLMClient:
     """Ollama LLM client - uses Llama3"""
@@ -993,14 +987,14 @@ def generate_llm_alternatives(alternatives_map, drug_names, interactions):
             # Get alternative's interactions from KG data
             alt_interactions = alt.get('interactions', [])
             
-            drug_section += f"{original_drug.title()} → {alt_name:<25} {sev_red:.3f}      {pri_imp:.3f}     {ars:.3f}\n"
+            drug_section += f"{original_drug.title()} -> {alt_name:<25} {sev_red:.3f}      {pri_imp:.3f}     {ars:.3f}\n"
             drug_section += f"  [{drugbank_id}] ATC: {atc}\n"
-            drug_section += f"  PRI: {orig_pri:.3f} → {alt_pri:.3f} | Risk: {alt_risk} | Regimen interactions: {num_int}\n"
+            drug_section += f"  PRI: {orig_pri:.3f} -> {alt_pri:.3f} | Risk: {alt_risk} | Regimen interactions: {num_int}\n"
             
             # Add clinical evidence if available
             evidence_key = (orig_lower, alt_name.lower())
             if evidence_key in clinical_evidence:
-                drug_section += f"  📚 Clinical Evidence: {clinical_evidence[evidence_key]}\n"
+                drug_section += f"  Clinical Evidence: {clinical_evidence[evidence_key]}\n"
             
             # Show specific interaction details from KG
             if alt_interactions:
@@ -1010,7 +1004,7 @@ def generate_llm_alternatives(alternatives_map, drug_names, interactions):
                     ai_desc = ai.get('description', '')[:80]
                     drug_section += f"    - {ai_sev}: {ai_desc}...\n"
             else:
-                drug_section += f"  ✓ No severe interactions with current regimen drugs\n"
+                drug_section += f"  [OK] No severe interactions with current regimen drugs\n"
             drug_section += "\n"
         
         kg_data_sections.append(drug_section)
@@ -1146,9 +1140,7 @@ def _fallback_alternatives(alternatives_map, interactions=None):
     return None
 
 
-# ============================================================
-# CONVERSATIONAL AI ASSISTANT - Natural ChatGPT-like Experience
-# ============================================================
+# Conversational AI Assistant - Natural ChatGPT-like Experience
 
 class ConversationMemory:
     """
@@ -1438,9 +1430,7 @@ If the information isn't in the knowledge graph, state that clearly before addin
         return response
 
 
-# ============================================================
-# Global instances & state
-# ============================================================
+# Global instances and state
 
 kg = KnowledgeGraph()
 llm = LLMClient()
@@ -1458,9 +1448,7 @@ def get_chat_assistant():
     return chat_assistant
 
 
-# ============================================================
 # Drug Identification with Fuzzy Matching
-# ============================================================
 
 def identify_drugs_preview(drug_input, progress=gr.Progress()):
     """
@@ -1543,9 +1531,7 @@ def identify_drugs_preview(drug_input, progress=gr.Progress()):
     return preview, confirmed_list, gr.update(visible=show_edit)
 
 
-# ============================================================
-# Narrative & Image Drug Extraction
-# ============================================================
+# Narrative and Image Drug Extraction
 
 def extract_drugs_from_narrative(narrative_text, progress=gr.Progress()):
     """
@@ -1697,9 +1683,7 @@ def extract_drugs_from_image(image, progress=gr.Progress()):
         return "", f"**Error processing image:** {str(e)}"
 
 
-# ============================================================
 # Knowledge Graph Analysis with Alternatives
-# ============================================================
 
 def analyze_ddi(drug_input, progress=gr.Progress()):
     """Analyze drug interactions and find safer alternatives"""
@@ -1729,7 +1713,7 @@ def analyze_ddi(drug_input, progress=gr.Progress()):
             preview += "**Did you mean:**\n"
             for input_name, matches in suggestions.items():
                 top_match = matches[0]
-                preview += f"- `{input_name}` → **{top_match[0]}** ({int(top_match[1]*100)}% match)\n"
+                preview += f"- `{input_name}` -> **{top_match[0]}** ({int(top_match[1]*100)}% match)\n"
             preview += "\n*Edit your input with the correct spelling and try again.*\n\n"
         if not_found:
             preview += f"Not found: {', '.join(not_found)}\n"
@@ -1868,9 +1852,7 @@ def analyze_ddi(drug_input, progress=gr.Progress()):
     )
 
 
-# ============================================================
 # Re-analyze with Selected Drugs
-# ============================================================
 
 def reanalyze_with_selection(current_drugs_selected, alternatives_selected, progress=gr.Progress()):
     """Re-run analysis with user's selected drugs (original + chosen alternatives)"""
@@ -2134,9 +2116,7 @@ Generated {datetime.now().strftime('%Y-%m-%d %H:%M')} • DrugBank • SIDER •
     return report
 
 
-# ============================================================
 # LLM Chat
-# ============================================================
 
 def extract_text_from_message(msg):
     """Extract plain text from various Gradio 6 message formats"""
@@ -2212,9 +2192,7 @@ def chat(message, history, model_name):
         return history, ""
 
 
-# ============================================================
 # Gradio Interface
-# ============================================================
 
 def create_app():
     
@@ -2510,9 +2488,7 @@ def create_app():
         
         # Three columns layout with equal spacing - full width
         with gr.Row(equal_height=True):
-            # ============================================================
             # COLUMN 1: Drug Input (List, Narrative, or Image)
-            # ============================================================
             with gr.Column(scale=1, min_width=300):
                 gr.Markdown("INPUT", elem_classes=["section-title"])
                 
@@ -2584,9 +2560,7 @@ def create_app():
                 
                 analyze_btn = gr.Button("Analyze Interactions", variant="primary", size="lg")
             
-            # ============================================================
             # COLUMN 2: Report
-            # ============================================================
             with gr.Column(scale=3, min_width=400):
                 gr.Markdown("REPORT", elem_classes=["section-title"])
                 
@@ -2594,9 +2568,7 @@ def create_app():
                     value="*Enter medications and click Analyze Interactions*"
                 )
             
-            # ============================================================
             # COLUMN 3: Chat Assistant
-            # ============================================================
             with gr.Column(scale=2, min_width=350):
                 gr.Markdown("ASSISTANT", elem_classes=["section-title"])
                 
@@ -2731,9 +2703,7 @@ def create_app():
     return app
 
 
-# ============================================================
 # Main
-# ============================================================
 
 if __name__ == "__main__":
     print("\n" + "="*60)

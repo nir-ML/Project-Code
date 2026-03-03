@@ -1,431 +1,181 @@
-# 🏥 AI-based Polypharmacy Risk-aware Drug Recommender System
+# Polypharmacy Risk-aware Drug Recommender System
 
-An agentic, modular architecture for drug-drug interaction (DDI) analysis and polypharmacy risk assessment, implementing the methodology from the paper "AI-based Polypharmacy Risk-aware Drug Recommender System".
+A modular system for drug-drug interaction (DDI) analysis and polypharmacy risk assessment.
 
-## 📋 Table of Contents
-
-- [Overview](#overview)
-- [Paper Methodology](#paper-methodology)
-- [Architecture](#architecture)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Usage](#usage)
-- [Agent Details](#agent-details)
-- [API Reference](#api-reference)
-- [External Validation Modules](#-external-validation-modules)
-
-## 🎯 Overview
+## Overview
 
 This system analyzes drug-drug interactions and provides:
-- **Drug Risk Network**: Graph-based DDI network with centrality metrics
-- **Polypharmacy Risk Index (PRI)**: Paper methodology for risk quantification
-- **Multi-Objective Recommender**: Ranks alternatives by risk reduction + centrality + phenotype avoidance
-- **Interaction Detection**: Identifies all pairwise DDIs from a medication list
-- **Severity Classification**: Evidence-based severity (validated: 71.6% DDInter accuracy, κ=+0.107)
-- **Risk Assessment**: Overall polypharmacy risk scoring
-- **Alternative Recommendations**: ATC-based safer drug alternatives
-- **Clinical Reports**: Human-readable reports with optional BioMistral-7B LLM
+- Drug Risk Network with centrality metrics
+- Polypharmacy Risk Index (PRI) for risk quantification
+- Alternative drug recommendations based on ATC classification
+- Severity classification validated against DDInter (66.4% accuracy)
+- Web interface with LLM-powered explanations
 
-## 📊 Paper Methodology
-
-### 1. Severity Classification Pipeline
-
-**Baseline → Optimized → Validated → Final**
-
-| Stage | Method | DDInter Accuracy | Cohen's κ |
-|-------|--------|-----------------|----------|
-| Baseline | Zero-Shot BART-MNLI | 12.4% | -0.000 |
-| Optimized | Evidence-Based Classifier | **71.6%** | **+0.107** |
-
-**Final Model**: Evidence-Based Classifier validated against:
-- **DDInter** (n=6,381 pairs): 71.6% exact, 98.8% adjacent accuracy, κ=+0.107
-
-### 2. Evidence-Based Classification Rules
-- **Contraindicated**: FDA Black Box Warnings, QT prolongation
-- **Major**: CHEST Guidelines, bleeding risk, organ toxicity
-- **Moderate**: CYP interactions, concentration changes
-- **Minor**: Sedation, GI effects
-
-### 3. Severity Distribution (Evidence-Based)
-| Level | Count | Percentage |
-|-------|-------|------------|
-| Contraindicated | 28,614 | 3.8% |
-| Major | 179,568 | 23.6% |
-| Moderate | 550,145 | 72.4% |
-| Minor | 1,447 | 0.2% |
-
-### 4. Drug Risk Network Construction
-- Nodes = Drugs, Edges = Interactions weighted by severity
-- Severity weights: Contraindicated=10, Major=7, Moderate=4, Minor=1
-- Computes degree centrality, weighted degree, and betweenness centrality
-
-### 5. Polypharmacy Risk Index (PRI)
-```
-PRI = 0.25×(Degree Centrality) + 0.30×(Weighted Degree) + 0.20×(Betweenness) + 0.25×(Severity Profile)
-```
-
-### 6. Multi-Objective Recommender Algorithm
-Ranks alternatives using four weighted objectives:
-- **Risk Reduction (35%)**: PRI delta between original and alternative drug
-- **Centrality Reduction (20%)**: Network centrality improvement
-- **Phenotype Avoidance (25%)**: Avoiding harmful interaction phenotypes
-- **New Interaction Penalty (20%)**: Minimizing new severe interactions
-
-## 🏗️ Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    ORCHESTRATOR AGENT                           │
-│              (Central Pipeline Controller)                      │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│   User Input (Drug List)                                        │
-│         │                                                       │
-│         ▼                                                       │
-│   ┌─────────────────────┐                                       │
-│   │ 🔍 InteractionAgent │ ──► Detect all DDIs                   │
-│   │   • Drug validation │                                       │
-│   │   • Pairwise lookup │                                       │
-│   └─────────┬───────────┘                                       │
-│             │                                                   │
-│             ▼                                                   │
-│   ┌─────────────────────┐                                       │
-│   │ ⚠️  SeverityAgent   │ ──► Classify severity, compute risk   │
-│   │   • ML prediction   │                                       │
-│   │   • Risk scoring    │                                       │
-│   └─────────┬───────────┘                                       │
-│             │                                                   │
-│             ▼                                                   │
-│   ┌─────────────────────┐                                       │
-│   │ 💊 AlternativeAgent │ ──► Find safer alternatives           │
-│   │   • ATC matching    │                                       │
-│   │   • Safety scoring  │                                       │
-│   └─────────┬───────────┘                                       │
-│             │                                                   │
-│             ▼                                                   │
-│   ┌─────────────────────┐                                       │
-│   │ 📝 ExplanationAgent │ ──► Generate reports                  │
-│   │   • Clinical report │                                       │
-│   │   • Patient summary │                                       │
-│   └─────────┬───────────┘                                       │
-│             │                                                   │
-│             ▼                                                   │
-│   ┌─────────────────────┐                                       │
-│   │   Final Output      │                                       │
-│   └─────────────────────┘                                       │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-## 📦 Installation
-
-### Quick Setup (Recommended)
+## Installation
 
 ```bash
-# Clone or navigate to the project directory
-cd /path/to/DDI-riskAnalysis-Recommendation
-
-# Run the full setup script (installs Python deps + Ollama LLM)
+cd DDI-riskAnalysis-Recommendation
 ./setup.sh
 ```
 
-This installs:
-- Python virtual environment with all dependencies
-- Ollama (local LLM for conversational AI)
-- llama3 model (~4.7GB)
-
-### Manual Installation
-
+Or manually:
 ```bash
-# Install Python dependencies only
 pip install -r requirements.txt
-
-# Optional: Install Ollama separately
+# Optional: Install Ollama for LLM features
 curl -fsSL https://ollama.com/install.sh | sh
 ollama pull llama3
 ```
 
-### DDI Chat GUI
-
-```bash
-# Start the web interface
-source .venv/bin/activate
-python ddi_chat_gui.py
-
-# Open http://localhost:8080
-```
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Command Line
-
 ```bash
-# Analyze specific drugs
 python main.py --drugs "Warfarin,Aspirin,Metoprolol,Lisinopril"
-
-# Interactive mode
 python main.py --interactive
-
-# Use sample drug list
 python main.py --sample cardiovascular_basic
+```
 
-# Train ML model and analyze
-python main.py --drugs "Warfarin,Aspirin" --train-model
-
-# Save reports to files
-python main.py --drugs "Warfarin,Aspirin" --save-report analysis_report
+### Web Application
+```bash
+python ddi_app.py
+# Open http://localhost:7860
 ```
 
 ### Python API
-
 ```python
-from agents import OrchestratorAgent
+from modules import Orchestrator
 import pandas as pd
 
-# Load DDI database
-df = pd.read_csv('ddi_cardio_or_antithrombotic_labeled (1).csv')
+df = pd.read_csv('data/ddi_cardio_or_antithrombotic_labeled (1).csv')
+orchestrator = Orchestrator(verbose=True)
+orchestrator.initialize(df)
 
-# Initialize the orchestrator
-orchestrator = OrchestratorAgent(verbose=True)
-orchestrator.initialize(df, train_severity_model=False)
-
-# Analyze medications
-result = orchestrator.analyze_drugs([
-    'Warfarin', 
-    'Aspirin', 
-    'Metoprolol', 
-    'Lisinopril'
-])
-
-# Get reports
-print(result['reports'])           # Clinical report
-print(result['patient_summary'])   # Patient-friendly summary
-print(result['structured_output']) # JSON for integration
+result = orchestrator.analyze_drugs(['Warfarin', 'Aspirin', 'Metoprolol'])
+print(result['reports'])
 ```
 
-## 📖 Usage
+## Architecture
 
-### Interactive Mode
+The system uses a modular pipeline:
 
-```bash
-python main.py --interactive
+```
+Orchestrator (Pipeline Controller)
+    |
+    v
+InteractionDetector --> SeverityClassifier --> AlternativeFinder --> ReportGenerator
+    |                         |                      |                     |
+    v                         v                      v                     v
+DDI Detection           Risk Scoring          ATC Matching         Report Generation
 ```
 
-Commands:
-- `analyze <drug1>, <drug2>, ...` - Analyze drug interactions
-- `sample <name>` - Use predefined sample drug list
-- `samples` - List available sample lists
-- `help` - Show help
-- `quit` - Exit
+### Modules
 
-### Available Sample Drug Lists
+| Module | Purpose |
+|--------|---------|
+| `InteractionDetector` | Detects DDIs from medication lists |
+| `SeverityClassifier` | Classifies interaction severity |
+| `DrugRiskNetwork` | Builds graph-based risk network |
+| `AlternativeFinder` | Finds safer therapeutic alternatives |
+| `ReportGenerator` | Generates clinical reports |
 
-| Name | Drugs |
-|------|-------|
-| `cardiovascular_basic` | Warfarin, Aspirin, Metoprolol, Lisinopril, Atorvastatin |
-| `cardiovascular_combo` | Warfarin, Clopidogrel, Aspirin, Heparin |
-| `heart_failure` | Digoxin, Furosemide, Spironolactone, Carvedilol, Lisinopril |
-| `hypertension` | Amlodipine, Lisinopril, Hydrochlorothiazide, Metoprolol |
-| `diabetes_cardiac` | Metformin, Glipizide, Atorvastatin, Lisinopril, Aspirin |
+## Methodology
 
-### Output Formats
+### Severity Classification
 
-- **clinical** - Full clinical report with severity details
-- **patient** - Patient-friendly summary
-- **json** - Structured JSON for integration
-- **all** - All formats (default)
+Rule-based classifier with empirically-derived keyword weights, validated against DDInter:
 
-## 🤖 Agent Details
+| Metric | Value |
+|--------|-------|
+| Exact Accuracy | 66.4% |
+| Adjacent Accuracy | 99.3% |
+| Cohen's Kappa | +0.096 |
+| Validation Set | n=11,150 pairs |
 
-### BaseAgent
-Abstract base class providing:
-- Status tracking (IDLE, RUNNING, SUCCESS, FAILED, WAITING)
-- Message passing between agents
-- Execution timing and error handling
+Classification rules based on:
+- FDA Black Box Warnings (Contraindicated)
+- CHEST Guidelines, bleeding risk (Major)
+- CYP interactions, concentration changes (Moderate)
+- Sedation, GI effects (Minor)
 
-### InteractionAgent 🔍
-- **Input**: List of drug names
-- **Output**: All detected DDIs with details
-- **Features**:
-  - Drug name validation and fuzzy matching
-  - Bidirectional interaction lookup
-  - Cardiovascular drug flagging (includes antithrombotic drugs)
+### Polypharmacy Risk Index (PRI)
 
-### SeverityAgent ⚠️
-- **Input**: Interactions from InteractionAgent
-- **Output**: Severity classifications and risk scores
-- **Features**:
-  - ML-based severity prediction (GradientBoosting)
-  - Rule-based fallback classification
-  - Overall risk score calculation (0-100)
-
-### AlternativeAgent 💊
-- **Input**: Problematic drugs and current medication list
-- **Output**: Safer alternative recommendations
-- **Features**:
-  - ATC-code based therapeutic matching
-  - Multi-level class search (anatomical → chemical)
-  - Safety scoring based on interaction profiles
-
-### ExplanationAgent 📝
-- **Input**: All analysis results
-- **Output**: Human-readable reports
-- **Features**:
-  - Clinical report generation
-  - Patient-friendly summaries
-  - Structured JSON for system integration
-
-### OrchestratorAgent 🎯
-- Central pipeline coordinator
-- Manages execution flow between agents
-- Aggregates results and handles errors
-
-## 📚 API Reference
-
-### OrchestratorAgent
-
-```python
-# Initialize
-orchestrator = OrchestratorAgent(verbose=True)
-orchestrator.initialize(ddi_dataframe, train_severity_model=False)
-
-# Analyze
-result = orchestrator.analyze_drugs(['Drug1', 'Drug2', ...])
-
-# Quick summary
-summary = orchestrator.get_quick_summary(['Drug1', 'Drug2'])
-
-# Get execution log
-log = orchestrator.get_execution_log()
-
-# Reset for new analysis
-orchestrator.reset()
+```
+PRI = 0.25*(Degree Centrality) + 0.30*(Weighted Degree) + 0.20*(Betweenness) + 0.25*(Severity Profile)
 ```
 
-### Result Structure
+Severity weights: Contraindicated=10, Major=7, Moderate=4, Minor=1
 
-```python
-result = {
-    'success': True/False,
-    'data': {
-        'pipeline_results': {
-            'validation': {...},
-            'interactions': [...],
-            'analyzed_interactions': [...],
-            'risk_assessment': {...},
-            'alternatives': {...},
-            'clinical_report': '...',
-            'patient_summary': '...',
-            'structured_output': {...}
-        },
-        'execution_summary': {
-            'total_duration_seconds': float,
-            'drugs_analyzed': int,
-            'interactions_found': int,
-            'risk_level': str
-        }
-    },
-    'errors': [...] or None
-}
-```
+### Alternative Drug Ranking
 
-## 📊 Data Format
+Alternatives are scored based on:
+- Risk Reduction: 35%
+- Centrality Reduction: 20%
+- Phenotype Avoidance: 25%
+- New Interaction Penalty: 20%
 
-The system expects a DDI CSV file with the following columns:
+## Data Format
+
+Input CSV columns:
 
 | Column | Description |
 |--------|-------------|
-| `drugbank_id_1` | DrugBank ID of first drug |
-| `drug_name_1` | Name of first drug |
-| `atc_1` | ATC code of first drug |
-| `is_cardiovascular_1` | Cardiovascular flag (0/1) - includes antithrombotic drugs |
-| `is_antithrombotic_1` | Legacy antithrombotic flag (now merged into cardiovascular) |
-| `drugbank_id_2` | DrugBank ID of second drug |
-| `drug_name_2` | Name of second drug |
-| `atc_2` | ATC code of second drug |
-| `is_cardiovascular_2` | Cardiovascular flag (0/1) - includes antithrombotic drugs |
-| `is_antithrombotic_2` | Legacy antithrombotic flag (now merged into cardiovascular) |
-| `interaction_description` | Description of the interaction |
+| `drugbank_id_1/2` | DrugBank identifiers |
+| `drug_name_1/2` | Drug names |
+| `atc_1/2` | ATC classification codes |
+| `is_cardiovascular_1/2` | Cardiovascular drug flag |
+| `is_antithrombotic_1/2` | Antithrombotic drug flag |
+| `interaction_description` | Interaction mechanism text |
 | `severity_label` | Severity classification |
-| `severity_confidence` | Confidence score |
+| `severity_confidence` | Classification confidence score |
 | `severity_numeric` | Numeric severity (1-4) |
 
-**Note**: All antithrombotic drugs are now classified as cardiovascular drugs in the analysis.
+## Project Structure
 
-## 🔬 External Validation Modules
-
-### FAERS Validation
-
-The system includes FDA Adverse Event Reporting System (FAERS) integration for external validation of risk scores:
-
-```bash
-# Run FAERS validation on sample drugs
-python agents/run_faers_validation.py --sample-size 50
-
-# Generate validation figures
-python agents/run_faers_validation.py --sample-size 100 --generate-figures
+```
+├── modules/                    # Core modules
+│   ├── orchestrator.py         # Pipeline controller
+│   ├── interaction_detector.py # DDI detection
+│   ├── severity_classifier.py  # Severity classification
+│   ├── alternative_finder.py   # Alternative recommendations
+│   ├── report_generator.py     # Report generation
+│   ├── drug_risk_network.py    # Network analysis
+│   ├── recommender.py          # Drug ranking
+│   ├── llm_client.py           # LLM integration
+│   └── faers_integration.py    # FAERS API client
+├── data/                       # DDI datasets
+│   └── ddi_cardio_or_antithrombotic_labeled (1).csv
+├── external_data/              # Validation data
+│   ├── ddinter/                # DDInter validation set
+│   ├── sider/                  # Side effect data
+│   └── ctd/                    # Chemical-disease data
+├── knowledge_graph_fact_based/ # Built knowledge graph
+│   ├── knowledge_graph.pkl
+│   └── neo4j_export/           # Neo4j CSV exports
+├── main.py                     # CLI entry point
+├── ddi_app.py                  # Web application
+├── build_fact_based_kg.py      # KG construction script
+├── recalibrate_severity.py     # Severity classification
+└── validate_against_ddinter.py # Validation script
 ```
 
-```python
-from agents import FAERSClient, FAERSValidator
+## External Validation
 
-# Validate individual drug
+### FAERS Integration
+```python
+from modules import FAERSClient
 client = FAERSClient()
 profile = client.get_drug_profile("Warfarin")
-print(f"Total FAERS reports: {profile.total_reports}")
-print(f"Serious event ratio: {profile.serious_event_ratio:.2%}")
-
-# Batch validation
-validator = FAERSValidator()
-results = validator.validate_drug_risk("Warfarin", network_pri=0.85)
 ```
 
-### GNN Risk Assessment (Optional)
-
-Graph Neural Network models for enhanced risk prediction:
-
+### DDInter Validation
 ```bash
-# Install GNN dependencies
-pip install torch torch_geometric transformers
-
-# Run GNN comparison
-python agents/gnn_risk_assessment.py
+python validate_against_ddinter.py
 ```
 
-```python
-from agents import GNNSeverityPredictor, GNN_AVAILABLE
+## Disclaimer
 
-if GNN_AVAILABLE:
-    predictor = GNNSeverityPredictor()
-    # Train on network topology features
-    predictor.train(data)
-```
+This analysis is for informational purposes only and should not replace professional clinical judgment. Consult qualified healthcare providers before making medication changes.
 
-### Comprehensive Three-Way Comparison
+## License
 
-Compare all risk assessment approaches:
-
-```bash
-# Run full comparison (algorithmic + GNN)
-python agents/comprehensive_comparison.py
-
-# Skip GNN for faster analysis
-python agents/comprehensive_comparison.py --skip-gnn
-```
-
-Output includes:
-- `comparison_results/algorithmic_risk_scores.csv` - Network topology-based risk
-- `comparison_results/comparison_table.md` - Method comparison summary
-- `comparison_results/comparison_results.json` - Full results
-
-## ⚠️ Disclaimer
-
-This AI-generated analysis is for informational purposes only and should not replace professional clinical judgment. Always consult with qualified healthcare providers before making changes to medication regimens.
-
-## 📄 License
-
-This project is for educational and research purposes. Please refer to the original paper for citation requirements.
-
-## 📚 Reference
-
-Based on: "AI-based Polypharmacy Risk-aware Drug Recommender System"
+For research and educational purposes.

@@ -4,7 +4,7 @@ Validate Classification Methods Against DDInter
 
 Compares different classification methods against DDInter ground truth.
 Maps our 4-level (Contraindicated/Major/Moderate/Minor) to DDInter's 3-level (Major/Moderate/Minor)
-by combining Contraindicated + Major → Major.
+by combining Contraindicated + Major -> Major.
 
 METHODOLOGY:
 - 70/30 stratified train/test split on matched DDI pairs
@@ -83,7 +83,7 @@ def match_datasets(our_df, ddinter_df):
     return matched_df
 
 def map_our_to_ddinter(severity):
-    """Map our 4-level to DDInter's 3-level (Contraindicated+Major → Major)."""
+    """Map our 4-level to DDInter's 3-level (Contraindicated+Major -> Major)."""
     mapping = {
         'Contraindicated interaction': 'Major',
         'Major interaction': 'Major',
@@ -182,7 +182,7 @@ def simulate_rule_based(matched_df, keyword_weights, train_scores=None):
         keyword_weights: Dictionary of keyword -> weight (derived from training set)
         train_scores: If provided, use these for percentile thresholds (from training set)
     
-    Output: 3-class predictions for DDInter validation (Contraindicated → Major)
+    Output: 3-class predictions for DDInter validation (Contraindicated -> Major)
     """
     scores = []
     for _, row in matched_df.iterrows():
@@ -194,8 +194,8 @@ def simulate_rule_based(matched_df, keyword_weights, train_scores=None):
     threshold_scores = train_scores if train_scores is not None else np.array(scores)
     
     # OPTIMIZED THRESHOLDS (from grid search on training data)
-    # Original: 96/78/4 → 52.1% exact
-    # Optimized: 96/92/2 → 66.4% exact (+14.3pp improvement)
+    # Original: 96/78/4 -> 52.1% exact
+    # Optimized: 96/92/2 -> 66.4% exact (+14.3pp improvement)
     contra_threshold = np.percentile(threshold_scores, 96)  # Top 4%
     major_threshold = np.percentile(threshold_scores, 92)   # Top 8% (optimized from 78%)
     minor_threshold = np.percentile(threshold_scores, 2)    # Bottom 2% (optimized from 4%)
@@ -203,7 +203,7 @@ def simulate_rule_based(matched_df, keyword_weights, train_scores=None):
     predictions = []
     for score in scores:
         if score >= contra_threshold:
-            predictions.append('Major')  # Contraindicated → Major for DDInter
+            predictions.append('Major')  # Contraindicated -> Major for DDInter
         elif score >= major_threshold:
             predictions.append('Major')
         elif score <= minor_threshold:
@@ -273,9 +273,7 @@ def main():
     matched_df = matched_df[matched_df['ddinter_severity'] != 'Unknown'].reset_index(drop=True)
     print(f"After filtering Unknown: {len(matched_df):,} pairs")
     
-    # =========================================================================
     # TRAIN/TEST SPLIT (70/30, stratified by DDInter severity)
-    # =========================================================================
     train_df, test_df = train_test_split(
         matched_df, 
         test_size=0.30, 
@@ -286,9 +284,7 @@ def main():
     print(f"Training set: {len(train_df):,} pairs (70%)")
     print(f"Test set: {len(test_df):,} pairs (30%)")
     
-    # =========================================================================
     # DERIVE WEIGHTS FROM TRAINING SET ONLY
-    # =========================================================================
     print(f"\n*** DERIVING WEIGHTS FROM TRAINING SET ***")
     keyword_weights = derive_keyword_weights(train_df)
     print("Derived keyword weights (from training data only):")
@@ -313,9 +309,7 @@ def main():
         train_scores_evidence.append(score)
     train_scores_evidence = np.array(train_scores_evidence)
     
-    # =========================================================================
     # VALIDATION ON HELD-OUT TEST SET
-    # =========================================================================
     print(f"\n*** VALIDATION ON HELD-OUT TEST SET (n={len(test_df):,}) ***")
     
     # Ground truth (DDInter labels from test set)

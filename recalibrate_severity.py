@@ -29,12 +29,11 @@ from dataclasses import dataclass
 from scipy import stats
 
 
-# ============================================================================
 # EMPIRICALLY-DERIVED KEYWORD WEIGHTS (from DDInter training set, n=26,014)
-# ============================================================================
+# ---
 # Weights = ln(P(keyword|Major) / P(keyword|Moderate))
-# Positive weights → predictive of Major severity
-# Negative weights → predictive of Moderate/Minor severity
+# Positive weights -> predictive of Major severity
+# Negative weights -> predictive of Moderate/Minor severity
 
 EMPIRICAL_KEYWORD_WEIGHTS = {
     # Positive weights (predictive of Major)
@@ -62,8 +61,8 @@ EMPIRICAL_KEYWORD_WEIGHTS = {
 }
 
 # Percentile thresholds (optimized via grid search on training data)
-# Original: 96/78/4 → 52.1% exact accuracy
-# Optimized: 96/92/2 → 66.4% exact accuracy (+14.3 pp improvement)
+# Original: 96/78/4 -> 52.1% exact accuracy
+# Optimized: 96/92/2 -> 66.4% exact accuracy (+14.3 pp improvement)
 PERCENTILE_THRESHOLDS = {
     'contraindicated': 96,  # Top 4%
     'major': 92,            # Top 8% (optimized from 78%)
@@ -71,9 +70,8 @@ PERCENTILE_THRESHOLDS = {
 }
 
 
-# ============================================================================
 # CLINICAL EVIDENCE RULES (for fallback/enhancement)
-# ============================================================================
+# ---
 
 # Definitive contraindication markers (require strong evidence)
 CONTRAINDICATED_MARKERS = {
@@ -349,10 +347,10 @@ class SeverityRecalibrator:
         Classify severity using percentile thresholds on empirical scores.
         
         Thresholds optimized via grid search on DDInter training data:
-        - Top 4% (P96) → Contraindicated  
-        - Top 8% (P92) → Major
-        - Bottom 2% (P2) → Minor
-        - Rest → Moderate
+        - Top 4% (P96) -> Contraindicated  
+        - Top 8% (P92) -> Major
+        - Bottom 2% (P2) -> Minor
+        - Rest -> Moderate
         
         Args:
             score: Empirical keyword score for this DDI
@@ -668,7 +666,7 @@ class SeverityRecalibrator:
         print(f"\n   Total changes: {changes:,} ({changes/len(df_original)*100:.1f}%)")
         
         # Change matrix
-        print("\n   Change Matrix (Original → Recalibrated):")
+        print("\n   Change Matrix (Original -> Recalibrated):")
         change_matrix = pd.crosstab(
             df_original['severity_label'], 
             df_recal['severity_recalibrated'],
@@ -716,28 +714,28 @@ class SeverityRecalibrator:
                 ['Contraindicated interaction', 'Major interaction']
             ).mean()
             results['anticoag_antiplatelet'] = float(major_plus)
-            print(f"\n   ✓ Anticoagulant+Antiplatelet Major+ rate: {major_plus:.1%}")
+            print(f"\n   [OK] Anticoagulant+Antiplatelet Major+ rate: {major_plus:.1%}")
         
         # 2. Check expected moderate interactions
         moderate_count = (df_recal['severity_recalibrated'] == 'Moderate interaction').sum()
         moderate_rate = moderate_count / len(df_recal)
         results['moderate_rate'] = float(moderate_rate)
         
-        status = "✓" if 0.3 <= moderate_rate <= 0.7 else "⚠️"
+        status = "[OK]" if 0.3 <= moderate_rate <= 0.7 else ""
         print(f"   {status} Moderate interaction rate: {moderate_rate:.1%} (target: 60%)")
         
         # 3. Check contraindicated rate
         contra_rate = (df_recal['severity_recalibrated'] == 'Contraindicated interaction').mean()
         results['contraindicated_rate'] = float(contra_rate)
         
-        status = "✓" if contra_rate <= 0.15 else "⚠️"
+        status = "[OK]" if contra_rate <= 0.15 else ""
         print(f"   {status} Contraindicated rate: {contra_rate:.1%} (target: 5%)")
         
         # 4. Confidence improvement
         mean_conf_orig = df_recal['severity_confidence'].mean()
         mean_conf_recal = df_recal['recal_confidence'].mean()
         results['confidence_improvement'] = float(mean_conf_recal - mean_conf_orig)
-        print(f"   ✓ Mean confidence: {mean_conf_orig:.3f} → {mean_conf_recal:.3f}")
+        print(f"   [OK] Mean confidence: {mean_conf_orig:.3f} -> {mean_conf_recal:.3f}")
         
         return results
 
@@ -786,7 +784,7 @@ def run_recalibration():
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     df_recal.to_csv(output_path, index=False)
-    print(f"\n📄 Recalibrated data saved to: {output_path}")
+    print(f"\nRecalibrated data saved to: {output_path}")
     
     # Save stats
     stats_path = output_path.with_suffix('.json')
@@ -800,7 +798,7 @@ def run_recalibration():
             'stats': recalibrator.recalibration_stats,
             'validation': validation
         }, f, indent=2, default=str)
-    print(f"📊 Statistics saved to: {stats_path}")
+    print(f"Statistics saved to: {stats_path}")
     
     return df_recal
 

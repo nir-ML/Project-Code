@@ -1,5 +1,0 @@
-Objective,Weight,Description,Optimization
-Risk Reduction,35%,PRI delta between original and alternative drug,Maximize
-Centrality Reduction,20%,Improvement in network centrality position,Maximize
-Phenotype Avoidance,25%,Avoiding drugs with harmful interaction phenotypes,Maximize
-New Interaction Penalty,20%,Penalty for introducing new severe interactions,Minimize
