@@ -63,15 +63,46 @@ outputs/
 *.ico
 *.svg
 
-# Large files (>100MB for GitHub)
-data/
-external_data/
+# ===========================================
+# LICENSED/RESTRICTED DATA - DO NOT DISTRIBUTE
+# ===========================================
+# See DATA_SOURCES.md for how to obtain these files
+
+# DrugBank data (requires license)
+data/full database.xml
+data/drugbank.xsd
+data/*.csv
+!data/.gitkeep
+
+# External data sources (various licenses)
+external_data/ddinter/
+external_data/sider/
+external_data/ctd/
+!external_data/.gitkeep
+!external_data/ddinter/.gitkeep
+!external_data/sider/.gitkeep
+!external_data/ctd/.gitkeep
+
+# Knowledge graph (derived from licensed data)
+knowledge_graph_fact_based/
 knowledge_graph/
 knowledge_graph_real/
 knowledge_graph_enriched/
 knowledge_graph_enriched_full/
+!knowledge_graph_fact_based/.gitkeep
+
+# Publication data
 publication_ahrq/data/
 publication_final/data/
+
+# Large binary files
 *.pkl
 *.xml
 **/ddi_edges.csv
+
+# ===========================================
+# SHAREABLE REFERENCE FILES (kept in repo)
+# ===========================================
+!data/official_drug_class_references.md
+!external_data/high_risk_drug_classes_reference.json
+!external_data/faers_comprehensive_reports.json

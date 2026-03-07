@@ -26,6 +26,30 @@ curl -fsSL https://ollama.com/install.sh | sh
 ollama pull llama3
 ```
 
+## Data Setup
+
+**Important:** This project requires external datasets that cannot be redistributed due to licensing restrictions.
+
+### Quick Setup
+```bash
+python scripts/download_data.py
+```
+
+This script will:
+1. Create required directories
+2. Check which data files are present
+3. Provide download instructions for missing files
+
+### Required Data Sources
+| Source | License | Required |
+|--------|---------|----------|
+| [DrugBank](https://go.drugbank.com/) | Academic License | Yes |
+| [DDInter](http://ddinter.scbdd.com/) | CC BY-NC-SA 4.0 | Yes |
+| [SIDER](http://sideeffects.embl.de/) | CC BY-NC-SA 4.0 | Yes |
+| [CTD](https://ctdbase.org/) | Free for academic | Optional |
+
+See **[DATA_SOURCES.md](DATA_SOURCES.md)** for detailed instructions on obtaining each dataset.
+
 ## Quick Start
 
 ### Command Line
@@ -142,20 +166,23 @@ Input CSV columns:
 │   ├── recommender.py          # Drug ranking
 │   ├── llm_client.py           # LLM integration
 │   └── faers_integration.py    # FAERS API client
-├── data/                       # DDI datasets
-│   └── ddi_cardio_or_antithrombotic_labeled (1).csv
-├── external_data/              # Validation data
+├── scripts/                    # Utility scripts
+│   └── download_data.py        # Data setup helper
+├── data/                       # DDI datasets (see DATA_SOURCES.md)
+├── external_data/              # External validation data
 │   ├── ddinter/                # DDInter validation set
 │   ├── sider/                  # Side effect data
 │   └── ctd/                    # Chemical-disease data
-├── knowledge_graph_fact_based/ # Built knowledge graph
+├── knowledge_graph_fact_based/ # Built knowledge graph (generated)
 │   ├── knowledge_graph.pkl
 │   └── neo4j_export/           # Neo4j CSV exports
 ├── main.py                     # CLI entry point
 ├── ddi_app.py                  # Web application
 ├── build_fact_based_kg.py      # KG construction script
 ├── recalibrate_severity.py     # Severity classification
-└── validate_against_ddinter.py # Validation script
+├── validate_against_ddinter.py # Validation script
+├── DATA_SOURCES.md             # Data acquisition guide
+└── README.md
 ```
 
 ## External Validation
@@ -178,4 +205,6 @@ This analysis is for informational purposes only and should not replace professi
 
 ## License
 
-For research and educational purposes.
+This code is provided for research and educational purposes.
+
+**Note:** The datasets used by this project (DrugBank, DDInter, SIDER, CTD) have their own licensing terms. See [DATA_SOURCES.md](DATA_SOURCES.md) for details. Users must obtain datasets directly from the original sources and comply with their respective licenses.

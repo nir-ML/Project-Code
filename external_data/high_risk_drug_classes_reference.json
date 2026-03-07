@@ -1,0 +1,204 @@
+{
+  "metadata": {
+    "title": "High-Risk Drug Classes for DDI Severity Classification",
+    "description": "Authoritative drug class lists sourced from Wikipedia compilations of clinical/regulatory sources",
+    "created_date": "2026-02-21",
+    "sources": [
+      {
+        "name": "Drug-induced QT prolongation",
+        "url": "https://en.wikipedia.org/wiki/Drug-induced_QT_prolongation",
+        "accessed": "2026-02-21"
+      },
+      {
+        "name": "Monoamine oxidase inhibitor",
+        "url": "https://en.wikipedia.org/wiki/Monoamine_oxidase_inhibitor",
+        "accessed": "2026-02-21"
+      },
+      {
+        "name": "CredibleMeds QTdrugs List",
+        "url": "https://www.crediblemeds.org/druglist",
+        "note": "Requires registration - cited but not scraped"
+      }
+    ]
+  },
+  
+  "qt_prolonging_drugs": {
+    "description": "Drugs associated with QT prolongation and risk of Torsades de Pointes",
+    "source": "Wikipedia: Drug-induced QT prolongation (compiled from Olsen 2005, Kallergis 2012)",
+    "categories": {
+      "class_ia_antiarrhythmics": {
+        "mechanism": "Block sodium and potassium channels",
+        "drugs": ["disopyramide", "procainamide", "propafenone", "quinidine"]
+      },
+      "class_iii_antiarrhythmics": {
+        "mechanism": "Potassium channel blockers",
+        "drugs": ["amiodarone", "dofetilide", "ibutilide", "sotalol", "dronedarone"]
+      },
+      "typical_antipsychotics": {
+        "drugs": ["chlorpromazine", "haloperidol", "sulpiride", "thioridazine"]
+      },
+      "atypical_antipsychotics": {
+        "drugs": ["amisulpride", "quetiapine", "risperidone", "sertindole", "ziprasidone"]
+      },
+      "ssris": {
+        "drugs": ["citalopram", "escitalopram", "fluoxetine", "paroxetine", "sertraline"]
+      },
+      "snris": {
+        "drugs": ["venlafaxine"]
+      },
+      "tricyclic_antidepressants": {
+        "drugs": ["amitriptyline", "desipramine", "doxepin", "imipramine"]
+      },
+      "macrolide_antibiotics": {
+        "drugs": ["azithromycin", "clarithromycin", "erythromycin"]
+      },
+      "fluoroquinolone_antibiotics": {
+        "drugs": ["ciprofloxacin", "levofloxacin", "moxifloxacin"]
+      },
+      "other_agents": {
+        "drugs": ["buprenorphine", "chloroquine", "cisapride", "domperidone", "famotidine", 
+                  "foscarnet", "hydroxychloroquine", "ibogaine", "ketoconazole", "methadone", 
+                  "octreotide", "ondansetron", "oxycodone", "tramadol", "tacrolimus", "tamoxifen"]
+      }
+    },
+    "all_drugs_flat": [
+      "disopyramide", "procainamide", "propafenone", "quinidine",
+      "amiodarone", "dofetilide", "ibutilide", "sotalol", "dronedarone",
+      "chlorpromazine", "haloperidol", "sulpiride", "thioridazine",
+      "amisulpride", "quetiapine", "risperidone", "sertindole", "ziprasidone",
+      "citalopram", "escitalopram", "fluoxetine", "paroxetine", "sertraline",
+      "venlafaxine",
+      "amitriptyline", "desipramine", "doxepin", "imipramine",
+      "azithromycin", "clarithromycin", "erythromycin",
+      "ciprofloxacin", "levofloxacin", "moxifloxacin",
+      "buprenorphine", "chloroquine", "cisapride", "domperidone", "famotidine",
+      "foscarnet", "hydroxychloroquine", "ibogaine", "ketoconazole", "methadone",
+      "octreotide", "ondansetron", "oxycodone", "tramadol", "tacrolimus", "tamoxifen"
+    ]
+  },
+
+  "maois": {
+    "description": "Monoamine Oxidase Inhibitors - risk of serotonin syndrome and hypertensive crisis",
+    "source": "Wikipedia: Monoamine oxidase inhibitor",
+    "categories": {
+      "fda_approved_for_depression": {
+        "notes": "FDA approved MAOIs for depression treatment",
+        "drugs": ["isocarboxazid", "phenelzine", "selegiline", "tranylcypromine"]
+      },
+      "nonselective_mao_ab_inhibitors": {
+        "hydrazines": ["isocarboxazid", "phenelzine", "hydracarbazine"],
+        "non_hydrazines": ["tranylcypromine"]
+      },
+      "selective_mao_a_inhibitors": {
+        "drugs": ["bifemelane", "methylene blue", "moclobemide", "pirlindole"]
+      },
+      "selective_mao_b_inhibitors": {
+        "drugs": ["rasagiline", "selegiline", "safinamide"]
+      },
+      "drugs_with_maoi_activity": {
+        "notes": "Drugs with weak MAOI activity",
+        "drugs": ["linezolid", "furazolidone", "methylene blue"]
+      }
+    },
+    "all_drugs_flat": [
+      "isocarboxazid", "phenelzine", "selegiline", "tranylcypromine",
+      "hydracarbazine", "bifemelane", "methylene blue", "moclobemide", 
+      "pirlindole", "rasagiline", "safinamide", "linezolid", "furazolidone"
+    ],
+    "dangerous_combinations": {
+      "serotonergic_drugs": {
+        "notes": "MAOIs + serotonergics = potentially fatal serotonin syndrome",
+        "drugs_to_avoid": ["ssris", "snris", "tricyclics", "meperidine", "tramadol", "dextromethorphan", "mdma"]
+      }
+    }
+  },
+
+  "anticoagulants": {
+    "description": "Drugs affecting blood clotting - risk of major bleeding",
+    "source": "Clinical pharmacology knowledge",
+    "categories": {
+      "vitamin_k_antagonists": {
+        "mechanism": "Inhibit vitamin K-dependent clotting factors",
+        "drugs": ["warfarin", "acenocoumarol", "phenprocoumon"]
+      },
+      "direct_oral_anticoagulants_doacs": {
+        "mechanism": "Direct factor Xa or thrombin inhibitors",
+        "factor_xa_inhibitors": ["rivaroxaban", "apixaban", "edoxaban", "betrixaban"],
+        "direct_thrombin_inhibitors": ["dabigatran"]
+      },
+      "heparins": {
+        "drugs": ["heparin", "enoxaparin", "dalteparin", "fondaparinux", "tinzaparin"]
+      },
+      "direct_thrombin_inhibitors_parenteral": {
+        "drugs": ["bivalirudin", "argatroban", "desirudin"]
+      }
+    },
+    "all_drugs_flat": [
+      "warfarin", "acenocoumarol", "phenprocoumon",
+      "rivaroxaban", "apixaban", "edoxaban", "betrixaban", "dabigatran",
+      "heparin", "enoxaparin", "dalteparin", "fondaparinux", "tinzaparin",
+      "bivalirudin", "argatroban", "desirudin"
+    ]
+  },
+
+  "antiplatelets": {
+    "description": "Drugs affecting platelet aggregation - bleeding risk when combined with anticoagulants",
+    "source": "Clinical pharmacology knowledge",
+    "categories": {
+      "aspirin_nsaids": {
+        "drugs": ["aspirin"]
+      },
+      "p2y12_inhibitors": {
+        "drugs": ["clopidogrel", "ticagrelor", "prasugrel", "ticlopidine", "cangrelor"]
+      },
+      "phosphodiesterase_inhibitors": {
+        "drugs": ["dipyridamole", "cilostazol"]
+      },
+      "glycoprotein_iib_iiia_inhibitors": {
+        "drugs": ["abciximab", "eptifibatide", "tirofiban"]
+      },
+      "par1_antagonists": {
+        "drugs": ["vorapaxar"]
+      }
+    },
+    "all_drugs_flat": [
+      "aspirin", "clopidogrel", "ticagrelor", "prasugrel", "ticlopidine", "cangrelor",
+      "dipyridamole", "cilostazol", "abciximab", "eptifibatide", "tirofiban", "vorapaxar"
+    ]
+  },
+
+  "serotonergic_drugs": {
+    "description": "Drugs affecting serotonin - risk of serotonin syndrome in combinations",
+    "source": "Wikipedia: Monoamine oxidase inhibitor (drug interactions section)",
+    "drugs": [
+      "fluoxetine", "sertraline", "paroxetine", "citalopram", "escitalopram",
+      "venlafaxine", "duloxetine", "desvenlafaxine",
+      "amitriptyline", "nortriptyline", "imipramine", "clomipramine",
+      "tramadol", "fentanyl", "meperidine", "tapentadol",
+      "sumatriptan", "rizatriptan", "zolmitriptan", "naratriptan",
+      "buspirone", "trazodone", "vilazodone", "vortioxetine",
+      "st_johns_wort", "tryptophan"
+    ]
+  },
+
+  "strong_cyp3a4_inhibitors": {
+    "description": "Strong CYP3A4 inhibitors - cause major pharmacokinetic interactions",
+    "source": "Clinical pharmacology knowledge",
+    "drugs": [
+      "ketoconazole", "itraconazole", "posaconazole", "voriconazole",
+      "clarithromycin", "erythromycin", "telithromycin",
+      "ritonavir", "nelfinavir", "indinavir", "saquinavir", "cobicistat",
+      "nefazodone", "grapefruit juice"
+    ]
+  },
+
+  "usage_notes": {
+    "how_to_use": "Match drug names from DDI pairs against these lists. If both drugs belong to high-risk classes (especially same class or known dangerous combination like MAOI+serotonergic), elevate severity score.",
+    "caveats": [
+      "Lists are not exhaustive - new drugs may not be included",
+      "Some drugs appear in multiple categories (e.g., SSRIs are both QT-prolonging and serotonergic)",
+      "Risk depends on specific drug pair and clinical context",
+      "Wikipedia sources compile from clinical literature but should be verified for clinical use"
+    ]
+  }
+}
