@@ -85,8 +85,11 @@ external_data/ctd/
 
 # Knowledge graph (derived from licensed data)
 knowledge_graph_fact_based/
+knowledge_graph_fact_based_backup/
 knowledge_graph_api_based/
 knowledge_graph_api_test/
+knowledge_graph_cardio/
+knowledge_graph_runtime/
 knowledge_graph/
 knowledge_graph_real/
 knowledge_graph_enriched/
