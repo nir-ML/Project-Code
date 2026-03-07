@@ -50,6 +50,26 @@ This script will:
 
 See **[DATA_SOURCES.md](DATA_SOURCES.md)** for detailed instructions on obtaining each dataset.
 
+### Alternative: API-Based Setup (No SIDER/CTD Required)
+
+If you only have DrugBank, you can build the knowledge graph using public APIs:
+
+```bash
+# Build KG using DrugBank + OpenFDA API for side effects
+python build_kg_api_based.py --output knowledge_graph_api_based
+
+# Skip API calls (DrugBank only)
+python build_kg_api_based.py --skip-api
+
+# Limit API calls for testing
+python build_kg_api_based.py --max-drugs 50
+```
+
+This approach uses:
+- **DrugBank XML** (local, requires license)
+- **OpenFDA API** (public, no license required) for side effects
+- DrugBank indications for disease associations
+
 ## Quick Start
 
 ### Command Line
