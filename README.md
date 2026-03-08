@@ -63,6 +63,8 @@ This repository is designed to avoid license conflicts:
 |-------------|---------|----------|-------|
 | DrugBank XML | Academic License | No | User provides at runtime |
 | Knowledge Graph | Derived from DrugBank | No | Built at runtime |
+| CTD (drug-disease) | Public API | Auto | Fetched via API, cached locally |
+| SIDER (side effects) | CC BY-NC-SA | Auto | Auto-downloaded from public URLs |
 | FAERS Data | Public Domain (FDA) | Yes | 116K adverse event records |
 | High-Risk Drug Classes | Public Domain | Yes | QT-prolonging, MAOIs, etc. |
 
@@ -70,7 +72,11 @@ This repository is designed to avoid license conflicts:
 \`\`\`
 external_data/
 ├── faers_comprehensive_reports.json    # FDA adverse events (Public Domain)
-└── high_risk_drug_classes_reference.json  # Drug class references
+├── high_risk_drug_classes_reference.json  # Drug class references
+├── ctd_cache.json                      # CTD API responses (auto-generated)
+└── sider/                              # Auto-downloaded at runtime
+    ├── drug_names.tsv
+    └── meddra_all_se.tsv.gz
 \`\`\`
 
 ### Data Users Must Provide

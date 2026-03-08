@@ -8,8 +8,8 @@ This script:
 2. Filters to cardiovascular (ATC C*) and antithrombotic (ATC B01*) drugs
 3. Integrates multiple data sources for fact-based knowledge graph:
    - DrugBank: DDIs, drug targets, enzymes, pathways, categories
-   - SIDER: Drug-side effect associations (requires user download)
-   - CTD: Drug-disease associations (requires user download)
+   - CTD API: Drug-disease associations (fetched at runtime, cached locally)
+   - SIDER: Drug-side effects (auto-downloaded from public URLs)
    - FAERS: FDA adverse event reports (included - public domain)
 4. Builds knowledge graph and launches the application
 
@@ -18,10 +18,10 @@ Filtering logic (from drugbankDataset_wrangling notebook):
 - Antithrombotic: ATC code starts with "B01"
 - DDI included if at least one drug is cardiovascular OR antithrombotic
 
-Data Sources:
+Data Sources (auto-fetched at runtime):
 - DrugBank XML (required): https://go.drugbank.com/releases/latest
-- SIDER (optional): http://sideeffects.embl.de/download/
-- CTD (optional): https://ctdbase.org/downloads/
+- CTD: Fetched via API from https://ctdbase.org/ (cached)
+- SIDER: Auto-downloaded from http://sideeffects.embl.de/
 
 Shareable data (included in repo):
 - external_data/faers_comprehensive_reports.json (Public Domain - FDA)
@@ -32,6 +32,8 @@ import os
 import sys
 import json
 import gzip
+import time
+import requests
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from pathlib import Path
@@ -145,8 +147,7 @@ class CardioKnowledgeGraphBuilder:
         # Reference data paths (shareable - included in repo)
         self.faers_path = "external_data/faers_comprehensive_reports.json"
         self.high_risk_path = "external_data/high_risk_drug_classes_reference.json"
-        self.sider_dir = "external_data/sider"
-        self.ctd_dir = "external_data/ctd"
+        self.sider_dir = "external_data/sider"  # Optional - requires manual download
         
         # Loaded reference data
         self.faers_data = {}
@@ -550,21 +551,37 @@ class CardioKnowledgeGraphBuilder:
         """
         Integrate SIDER side effects data using drug name matching.
         SIDER uses STITCH compound IDs which map to drug names.
+        
+        Auto-downloads SIDER files if not present (public download URLs).
         """
-        print("\n🔬 Integrating SIDER (side effects by drug name match)...")
+        print("\n🔬 Integrating SIDER (side effects - auto-download)...")
         
-        drug_names_file = Path(self.sider_dir) / "drug_names.tsv"
-        se_file = Path(self.sider_dir) / "meddra_all_se.tsv.gz"
+        sider_dir = Path(self.sider_dir)
+        sider_dir.mkdir(parents=True, exist_ok=True)
         
-        if not drug_names_file.exists():
-            print(f"  ⚠ SIDER drug names not found: {drug_names_file}")
-            print("    Download from: http://sideeffects.embl.de/download/")
-            return
+        drug_names_file = sider_dir / "drug_names.tsv"
+        se_file = sider_dir / "meddra_all_se.tsv.gz"
         
-        if not se_file.exists():
-            print(f"  ⚠ SIDER side effects not found: {se_file}")
-            print("    Download from: http://sideeffects.embl.de/download/")
-            return
+        # Auto-download SIDER files if not present
+        sider_urls = {
+            drug_names_file: "http://sideeffects.embl.de/media/download/drug_names.tsv",
+            se_file: "http://sideeffects.embl.de/media/download/meddra_all_se.tsv.gz"
+        }
+        
+        for filepath, url in sider_urls.items():
+            if not filepath.exists():
+                print(f"  Downloading {filepath.name}...")
+                try:
+                    response = requests.get(url, timeout=120, stream=True)
+                    response.raise_for_status()
+                    with open(filepath, 'wb') as f:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            f.write(chunk)
+                    print(f"    ✓ Downloaded {filepath.name}")
+                except requests.exceptions.RequestException as e:
+                    print(f"    ⚠ Failed to download {filepath.name}: {e}")
+                    print("      Skipping SIDER integration")
+                    return
         
         # Step 1: Load SIDER drug name mappings (STITCH ID -> drug name)
         sider_drug_names: Dict[str, str] = {}
@@ -635,72 +652,116 @@ class CardioKnowledgeGraphBuilder:
     
     def integrate_ctd(self):
         """
-        Integrate CTD drug-disease associations using CAS number or drug name matching.
+        Integrate CTD drug-disease associations via API with local caching.
+        Uses CTD batch query API: https://ctdbase.org/tools/batchQuery.go
         """
-        print("\n🔬 Integrating CTD (drug-disease by CAS/name match)...")
+        print("\n🔬 Integrating CTD (drug-disease via API)...")
         
-        ctd_file = Path(self.ctd_dir) / "CTD_chemicals_diseases.tsv.gz"
+        cache_file = Path("external_data/ctd_cache.json")
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
         
-        if not ctd_file.exists():
-            print(f"  ⚠ CTD file not found: {ctd_file}")
-            print("    Download from: https://ctdbase.org/downloads/")
-            return
+        # Load cache if exists
+        cached_data = {}
+        if cache_file.exists():
+            try:
+                with open(cache_file, 'r') as f:
+                    cached_data = json.load(f)
+                print(f"  ✓ Loaded {len(cached_data)} cached drug-disease queries")
+            except:
+                cached_data = {}
         
-        # Build lookup maps from our drugs
-        our_cas_to_drug: Dict[str, str] = {}
-        our_name_to_drug: Dict[str, str] = {}
-        
+        # Collect drug names and CAS numbers for lookup
+        drug_identifiers = []
         for drug_id, drug in self.drugs.items():
-            if drug.cas_number:
-                our_cas_to_drug[drug.cas_number] = drug_id
-            our_name_to_drug[drug.name.lower()] = drug_id
-            for syn in drug.synonyms:
-                our_name_to_drug[syn.lower()] = drug_id
+            drug_identifiers.append({
+                'drugbank_id': drug_id,
+                'name': drug.name,
+                'cas': drug.cas_number
+            })
         
-        try:
-            with gzip.open(ctd_file, 'rt', encoding='utf-8') as f:
-                for line in f:
-                    if line.startswith('#'):
+        # Query CTD API for drugs not in cache (batch to avoid rate limiting)
+        new_queries = 0
+        batch_size = 100  # CTD recommends batching
+        drugs_to_query = [d for d in drug_identifiers if d['name'].lower() not in cached_data]
+        
+        if drugs_to_query:
+            print(f"  Querying CTD API for {len(drugs_to_query)} drugs...")
+            
+            for i in range(0, min(len(drugs_to_query), 500), batch_size):  # Limit to 500 for speed
+                batch = drugs_to_query[i:i+batch_size]
+                
+                for drug_info in batch:
+                    drug_name = drug_info['name']
+                    cache_key = drug_name.lower()
+                    
+                    if cache_key in cached_data:
                         continue
                     
-                    parts = line.strip().split('\t')
-                    if len(parts) >= 6:
-                        chemical_name = parts[0].strip()
-                        cas_rn = parts[2].strip() if len(parts) > 2 else ""
-                        disease_name = parts[3] if len(parts) > 3 else ""
-                        disease_id = parts[4] if len(parts) > 4 else ""
-                        direct_evidence = parts[5] if len(parts) > 5 else ""
+                    try:
+                        # CTD batch query endpoint
+                        url = "https://ctdbase.org/tools/batchQuery.go"
+                        params = {
+                            'inputType': 'chem',
+                            'inputTerms': drug_name,
+                            'report': 'diseases_curated',
+                            'format': 'json'
+                        }
                         
-                        # Only include direct evidence (therapeutic or marker/mechanism)
-                        if not direct_evidence:
-                            continue
+                        response = requests.get(url, params=params, timeout=10)
                         
-                        # Try to match by CAS first, then by name
-                        drugbank_id = None
+                        if response.status_code == 200:
+                            try:
+                                data = response.json()
+                                cached_data[cache_key] = data if isinstance(data, list) else []
+                                new_queries += 1
+                            except:
+                                cached_data[cache_key] = []
+                        else:
+                            cached_data[cache_key] = []
                         
-                        if cas_rn and cas_rn in our_cas_to_drug:
-                            drugbank_id = our_cas_to_drug[cas_rn]
-                        elif chemical_name.lower() in our_name_to_drug:
-                            drugbank_id = our_name_to_drug[chemical_name.lower()]
+                        # Rate limiting - be nice to the API
+                        time.sleep(0.1)
                         
-                        if drugbank_id and disease_id:
-                            # Add disease node
-                            if disease_id not in self.diseases:
-                                self.diseases[disease_id] = Disease(
-                                    mesh_id=disease_id,
-                                    name=disease_name,
-                                    relationship_type=direct_evidence,
-                                )
-                            
-                            # Add drug-disease edge
-                            self.drug_disease_edges.append((drugbank_id, disease_id, direct_evidence))
-                            self.stats['ctd_matched'] += 1
+                    except requests.exceptions.RequestException as e:
+                        cached_data[cache_key] = []
+                        continue
+                
+                if new_queries > 0 and i % 100 == 0:
+                    print(f"    Queried {min(i + batch_size, len(drugs_to_query))} drugs...")
             
-            print(f"  ✓ Loaded {len(self.diseases):,} unique diseases")
-            print(f"  ✓ Loaded {len(self.drug_disease_edges):,} drug-disease associations")
+            # Save updated cache
+            if new_queries > 0:
+                with open(cache_file, 'w') as f:
+                    json.dump(cached_data, f)
+                print(f"  ✓ Cached {new_queries} new API responses")
+        
+        # Process cached data to build drug-disease associations
+        for drug_info in drug_identifiers:
+            drug_id = drug_info['drugbank_id']
+            cache_key = drug_info['name'].lower()
             
-        except Exception as e:
-            print(f"  ⚠ Error loading CTD: {e}")
+            disease_records = cached_data.get(cache_key, [])
+            
+            for record in disease_records:
+                if isinstance(record, dict):
+                    disease_id = record.get('DiseaseID', '')
+                    disease_name = record.get('DiseaseName', '')
+                    direct_evidence = record.get('DirectEvidence', '')
+                    
+                    # Only include records with direct evidence
+                    if disease_id and direct_evidence:
+                        if disease_id not in self.diseases:
+                            self.diseases[disease_id] = Disease(
+                                mesh_id=disease_id,
+                                name=disease_name,
+                                relationship_type=direct_evidence,
+                            )
+                        
+                        self.drug_disease_edges.append((drug_id, disease_id, direct_evidence))
+                        self.stats['ctd_matched'] += 1
+        
+        print(f"  ✓ Loaded {len(self.diseases):,} unique diseases")
+        print(f"  ✓ Loaded {len(self.drug_disease_edges):,} drug-disease associations")
     
     def export_for_app(self, output_dir: str):
         """Export knowledge graph for the DDI app"""

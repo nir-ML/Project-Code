@@ -111,3 +111,4 @@ publication_final/data/
 !data/official_drug_class_references.md
 !external_data/high_risk_drug_classes_reference.json
 !external_data/faers_comprehensive_reports.json
+!external_data/ctd_cache.json
