@@ -174,13 +174,21 @@ class CardioKnowledgeGraphBuilder:
             raise FileNotFoundError(f"DrugBank XML not found: {self.xml_path}")
         
         ns = self.NAMESPACE
+        drug_tag = f"{{{ns['db']}}}drug"
         
         # Use iterparse for memory efficiency
-        context = ET.iterparse(self.xml_path, events=('end',))
+        # Get reference to root first for proper memory management
+        context = ET.iterparse(self.xml_path, events=('start', 'end'))
+        root = None
         drug_count = 0
         
         for event, elem in context:
-            if elem.tag == f"{{{ns['db']}}}drug":
+            # Get root on first start event
+            if event == 'start' and root is None:
+                root = elem
+                continue
+            
+            if event == 'end' and elem.tag == drug_tag:
                 # Get drug ID
                 drug_id = None
                 for db_id in elem.findall('db:drugbank-id', ns):
@@ -193,20 +201,37 @@ class CardioKnowledgeGraphBuilder:
                         drug_id = ids[0].text
                 
                 if drug_id:
-                    # Get ATC codes
+                    # Get ATC codes - extract BEFORE clearing
                     atc_codes = []
                     for atc in elem.findall('.//db:atc-code', ns):
                         code = atc.get('code')
                         if code:
                             atc_codes.append(code)
                     
-                    self.atc_lookup[drug_id] = atc_codes
+                    # Only store if we found ATC codes, or if this is first time seeing this drug
+                    # (prevents later empty entries from overwriting good data)
+                    if atc_codes or drug_id not in self.atc_lookup:
+                        # Merge with existing if we have both
+                        if drug_id in self.atc_lookup and self.atc_lookup[drug_id]:
+                            existing = set(self.atc_lookup[drug_id])
+                            existing.update(atc_codes)
+                            self.atc_lookup[drug_id] = list(existing)
+                        else:
+                            self.atc_lookup[drug_id] = atc_codes
+                    
                     drug_count += 1
                     
                     if drug_count % 5000 == 0:
                         print(f"   Scanned {drug_count:,} drugs for ATC codes...")
                 
+                # Clear this element and remove from root to free memory
                 elem.clear()
+                if root is not None:
+                    # Remove processed child from root
+                    try:
+                        root.remove(elem)
+                    except ValueError:
+                        pass
         
         self.stats['total_drugs'] = drug_count
         print(f"  ✓ ATC lookup built: {drug_count:,} drugs")
@@ -229,7 +254,11 @@ class CardioKnowledgeGraphBuilder:
         print(f"\n🔍 Parsing and filtering to cardiovascular & antithrombotic drugs...")
         
         ns = self.NAMESPACE
-        context = ET.iterparse(self.xml_path, events=('end',))
+        drug_tag = f"{{{ns['db']}}}drug"
+        
+        # Use iterparse with proper memory management
+        context = ET.iterparse(self.xml_path, events=('start', 'end'))
+        root = None
         
         drug_count = 0
         ddi_count = 0
@@ -238,7 +267,12 @@ class CardioKnowledgeGraphBuilder:
         filtered_ddis = 0
         
         for event, elem in context:
-            if elem.tag == f"{{{ns['db']}}}drug":
+            # Get root on first start event
+            if event == 'start' and root is None:
+                root = elem
+                continue
+                
+            if event == 'end' and elem.tag == drug_tag:
                 drug = self._parse_drug_element(elem, ns)
                 
                 if drug:
@@ -283,7 +317,13 @@ class CardioKnowledgeGraphBuilder:
                     if drug_count % 2000 == 0:
                         print(f"   Processed {drug_count:,} drugs, kept {filtered_drugs:,} drugs, {filtered_ddis:,} DDIs...")
                 
+                # Clear this element and remove from root to free memory
                 elem.clear()
+                if root is not None:
+                    try:
+                        root.remove(elem)
+                    except ValueError:
+                        pass
         
         self.stats['total_ddis'] = ddi_count
         self.stats['filtered_ddis'] = filtered_ddis

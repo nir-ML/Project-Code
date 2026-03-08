@@ -2,16 +2,23 @@
 
 A modular system for drug-drug interaction (DDI) analysis and polypharmacy risk assessment, focused on **cardiovascular and antithrombotic drugs**.
 
-## Overview
+![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)
+![License](https://img.shields.io/badge/License-Research-green.svg)
+![Gradio](https://img.shields.io/badge/UI-Gradio-orange.svg)
 
-This system analyzes drug-drug interactions and provides:
-- Drug Risk Network with centrality metrics
-- Polypharmacy Risk Index (PRI) for risk quantification
-- Alternative drug recommendations based on ATC classification
-- Severity classification validated against DDInter (66.4% accuracy)
-- Web interface with LLM-powered explanations
+## ✨ Features
 
-## Quick Start
+- **Drug-Drug Interaction Detection** - Analyze interactions between multiple medications
+- **Risk Network Analysis** - Graph-based centrality metrics for polypharmacy risk
+- **Polypharmacy Risk Index (PRI)** - Quantified risk scoring for drug regimens
+- **Alternative Drug Recommendations** - ATC-based safer alternatives
+- **Severity Classification** - Rule-based classification validated against DDInter (66.4% accuracy)
+- **LLM-Powered Explanations** - Clinical summaries using local LLM (Ollama)
+- **Web Interface** - Interactive Gradio application
+
+---
+
+## 🚀 Quick Start
 
 ### 1. Install Dependencies
 ```bash
@@ -19,12 +26,12 @@ pip install -r requirements.txt
 ```
 
 ### 2. Get DrugBank Data
-You need to obtain the DrugBank XML database (requires free academic license):
-- Register at [DrugBank](https://go.drugbank.com/)
-- Download "Full Database" in XML format
-- Note the path to `full database.xml`
+You need the DrugBank XML database (requires free academic license):
+1. Register at [DrugBank](https://go.drugbank.com/)
+2. Download "Full Database" in XML format
+3. Note the path to \`full database.xml\`
 
-> **Why?** DrugBank's license prohibits redistribution. Each user must obtain their own copy. The knowledge graph is built at runtime from your local DrugBank file.
+> **Why not included?** DrugBank's license prohibits redistribution. Each user must obtain their own copy. The knowledge graph is built at runtime from your local file.
 
 ### 3. Run the Application
 ```bash
@@ -32,94 +39,103 @@ python run_app.py
 ```
 
 The application will:
-1. **Prompt for DrugBank XML path** (or pass as argument)
-2. **Filter to cardiovascular (ATC C*) and antithrombotic (ATC B01*) drugs**
-3. **Use included FAERS data** (public domain, no download needed)
-4. **Build the knowledge graph at runtime**
-5. **Launch the web interface** at http://localhost:7860
+1. **Prompt for DrugBank XML path** (or pass as argument/env var)
+2. **Filter to cardiovascular and antithrombotic drugs**
+3. **Build knowledge graph at runtime** (~759K DDIs)
+4. **Launch web interface** at http://localhost:7860
 
-You can also specify the DrugBank path directly:
+**Alternative ways to specify DrugBank path:**
 ```bash
+# Command line argument
 python run_app.py /path/to/full\ database.xml
-# or
+
+# Environment variable
 DRUGBANK_XML=/path/to/drugbank.xml python run_app.py
 ```
 
-## Data Licensing
+---
+
+## 📊 Data Licensing
 
 This repo is designed to avoid license conflicts:
 
-| Data | License | In Repo? | Notes |
-|------|---------|----------|-------|
+| Data Source | License | Included? | Notes |
+|-------------|---------|-----------|-------|
 | **DrugBank XML** | Academic License | ❌ No | User provides at runtime |
 | **Knowledge Graph** | Derived from DrugBank | ❌ No | Built at runtime |
-| **FAERS Data** | Public Domain (FDA) | ✅ Yes | Freely shareable |
-| **Drug Class Refs** | Wikipedia/Public | ✅ Yes | Freely shareable |
+| **FAERS Data** | Public Domain (FDA) | ✅ Yes | 116K adverse event records |
+| **High-Risk Drug Classes** | Wikipedia/Public | ✅ Yes | QT-prolonging, MAOIs, etc. |
 
-### What's Included (Safe to Share)
-- `external_data/faers_comprehensive_reports.json` - FDA adverse event reports
-- `external_data/high_risk_drug_classes_reference.json` - QT-prolonging drugs, MAOIs, etc.
-
-### What Users Must Provide
-- DrugBank XML file (`full database.xml`) - get from [drugbank.com](https://go.drugbank.com/)
-
-## Drug Filter
-
-The application filters DrugBank to drugs relevant for cardiovascular care:
-- **Cardiovascular drugs**: ATC codes starting with "C"
-- **Antithrombotic drugs**: ATC codes starting with "B01"
-
-This reduces ~20,000 drugs to ~4,300 focused on cardiac/blood medications and their ~490,000 interactions.
-
-## Installation
-
-```bash
-git clone <repo-url>
-cd DDI-riskAnalysis-Recommendation
-pip install -r requirements.txt
+### ✅ What's Included (Safe to Share)
+```
+external_data/
+├── faers_comprehensive_reports.json    # FDA adverse events (Public Domain)
+└── high_risk_drug_classes_reference.json  # Drug class references
 ```
 
-Or use the setup script:
-```bash
-./setup.sh
+### ❌ What Users Must Provide
+- DrugBank XML file (\`full database.xml\`) - obtain from [drugbank.com](https://go.drugbank.com/)
+
+---
+
+## 🎯 Drug Filter
+
+The application filters DrugBank to cardiovascular-relevant drugs:
+
+| Category | ATC Code | Example Drugs |
+|----------|----------|---------------|
+| **Cardiovascular** | C* | Warfarin, Metoprolol, Atorvastatin |
+| **Antithrombotic** | B01* | Aspirin, Clopidogrel, Rivaroxaban |
+
+**Result:** ~4,300 drugs with ~759,000 interactions (from ~20,000 total drugs)
+
+---
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Orchestrator (Pipeline)                     │
+└─────────────────────────────────────────────────────────────────┘
+        │              │                │                │
+        ▼              ▼                ▼                ▼
+┌───────────────┐ ┌───────────────┐ ┌───────────────┐ ┌───────────────┐
+│  Interaction  │ │   Severity    │ │  Alternative  │ │    Report     │
+│   Detector    │ │  Classifier   │ │    Finder     │ │   Generator   │
+└───────────────┘ └───────────────┘ └───────────────┘ └───────────────┘
+        │              │                │                │
+        ▼              ▼                ▼                ▼
+   DDI Detection   Risk Scoring    ATC Matching    LLM Synthesis
 ```
 
-Optional LLM support:
-```bash
-curl -fsSL https://ollama.com/install.sh | sh
-ollama pull llama3
-```
-
-## Architecture
-
-The system uses a modular pipeline:
-
-```
-Orchestrator (Pipeline Controller)
-    |
-    v
-InteractionDetector --> SeverityClassifier --> AlternativeFinder --> ReportGenerator
-    |                         |                      |                     |
-    v                         v                      v                     v
-DDI Detection           Risk Scoring          ATC Matching         Report Generation
-```
-
-### Modules
+### Core Modules
 
 | Module | Purpose |
 |--------|---------|
-| `InteractionDetector` | Detects DDIs from medication lists |
-| `SeverityClassifier` | Classifies interaction severity |
-| `DrugRiskNetwork` | Builds graph-based risk network |
-| `AlternativeFinder` | Finds safer therapeutic alternatives |
-| `ReportGenerator` | Generates clinical reports |
+| \`interaction_detector.py\` | Detects DDIs from medication lists |
+| \`severity_classifier.py\` | Classifies interaction severity (4 levels) |
+| \`drug_risk_network.py\` | Builds graph-based risk network |
+| \`alternative_finder.py\` | Finds safer therapeutic alternatives |
+| \`report_generator.py\` | Generates clinical reports |
+| \`llm_client.py\` | LLM integration (Ollama/Llama3) |
+| \`faers_integration.py\` | FDA adverse event data |
 
-## Methodology
+---
+
+## 📈 Methodology
 
 ### Severity Classification
 
-Rule-based classifier with empirically-derived keyword weights, validated against DDInter:
+Rule-based classifier with empirically-derived keyword weights:
 
+| Severity Level | Keywords/Triggers |
+|----------------|-------------------|
+| **Contraindicated** | FDA Black Box warnings, "do not use", fatal risk |
+| **Major** | Bleeding risk, CHEST guidelines, life-threatening |
+| **Moderate** | CYP interactions, concentration changes, monitoring |
+| **Minor** | Sedation, GI effects, additive effects |
+
+**Validation against DDInter:**
 | Metric | Value |
 |--------|-------|
 | Exact Accuracy | 66.4% |
@@ -127,50 +143,34 @@ Rule-based classifier with empirically-derived keyword weights, validated agains
 | Cohen's Kappa | +0.096 |
 | Validation Set | n=11,150 pairs |
 
-Classification rules based on:
-- FDA Black Box Warnings (Contraindicated)
-- CHEST Guidelines, bleeding risk (Major)
-- CYP interactions, concentration changes (Moderate)
-- Sedation, GI effects (Minor)
-
 ### Polypharmacy Risk Index (PRI)
 
 ```
-PRI = 0.25*(Degree Centrality) + 0.30*(Weighted Degree) + 0.20*(Betweenness) + 0.25*(Severity Profile)
+PRI = 0.25×(Degree) + 0.30×(WeightedDegree) + 0.20×(Betweenness) + 0.25×(SeverityProfile)
 ```
+
+| Risk Level | PRI Score |
+|------------|-----------|
+| High Risk | > 0.5 |
+| Medium Risk | 0.3 - 0.5 |
+| Lower Risk | < 0.3 |
 
 Severity weights: Contraindicated=10, Major=7, Moderate=4, Minor=1
 
-### Alternative Drug Ranking
-
-Alternatives are scored based on:
-- Risk Reduction: 35%
-- Centrality Reduction: 20%
-- Phenotype Avoidance: 25%
-- New Interaction Penalty: 20%
-
-## Data Format
-
-Input CSV columns:
-
-| Column | Description |
-|--------|-------------|
-| `drugbank_id_1/2` | DrugBank identifiers |
-| `drug_name_1/2` | Drug names |
-| `atc_1/2` | ATC classification codes |
-| `is_cardiovascular_1/2` | Cardiovascular drug flag |
-| `is_antithrombotic_1/2` | Antithrombotic drug flag |
-| `interaction_description` | Interaction mechanism text |
-| `severity_label` | Severity classification |
-| `severity_confidence` | Classification confidence score |
-| `severity_numeric` | Numeric severity (1-4) |
-
-## Project Structure
+### Alternative Drug Ranking Score (ARS)
 
 ```
-├── run_app.py                  # 🚀 Main entry point - run this!
+ARS = 0.70×(Severity Reduction) + 0.30×(PRI Improvement)
+```
+
+---
+
+## 📁 Project Structure
+
+```
+├── run_app.py                  # 🚀 Main entry point
 ├── ddi_app.py                  # Web application (Gradio)
-├── modules/                    # Core modules
+├── modules/
 │   ├── orchestrator.py         # Pipeline controller
 │   ├── interaction_detector.py # DDI detection
 │   ├── severity_classifier.py  # Severity classification
@@ -178,25 +178,81 @@ Input CSV columns:
 │   ├── report_generator.py     # Report generation
 │   ├── drug_risk_network.py    # Network analysis
 │   ├── recommender.py          # Drug ranking
-│   ├── llm_client.py           # LLM integration
-│   └── faers_integration.py    # FAERS API client
-├── data/                       # User provides DrugBank XML here
-│   └── .gitkeep                # (empty - user adds full database.xml)
-├── external_data/              # Reference data
-│   ├── faers_comprehensive_reports.json  # ✅ Included (Public Domain)
-│   ├── high_risk_drug_classes_reference.json  # ✅ Included
-│   ├── ddinter/                # Empty - optional validation data
-│   ├── sider/                  # Empty - optional side effect data
-│   └── ctd/                    # Empty - optional disease data
+│   ├── llm_client.py           # LLM integration (Ollama)
+│   └── faers_integration.py    # FAERS data integration
+├── external_data/
+│   ├── faers_comprehensive_reports.json  # ✅ FDA data (included)
+│   └── high_risk_drug_classes_reference.json  # ✅ Reference data
+├── data/
+│   └── .gitkeep                # User adds DrugBank XML here
 ├── knowledge_graph_fact_based/ # Generated at runtime
-│   └── .gitkeep                # (empty until run_app.py builds it)
-├── main.py                     # CLI entry point
-├── build_kg_api_based.py       # Alternative KG builder
+├── requirements.txt
 ├── DATA_SOURCES.md             # Data acquisition guide
 └── README.md
 ```
 
-## External Validation
+---
+
+## 🛠️ Installation
+
+### Basic Setup
+```bash
+git clone <repo-url>
+cd <repo-name>
+pip install -r requirements.txt
+```
+
+### With Virtual Environment (Recommended)
+```bash
+python -m venv .venv
+source .venv/bin/activate  # Linux/Mac
+# or: .venv\Scripts\activate  # Windows
+pip install -r requirements.txt
+```
+
+### Optional: LLM Support
+For AI-powered clinical summaries:
+```bash
+# Install Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Pull Llama3 model
+ollama pull llama3
+```
+
+---
+
+## 💻 Usage
+
+### Web Interface
+```bash
+python run_app.py
+# Opens at http://localhost:7860
+```
+
+### Command Line
+```bash
+python main.py --drugs "warfarin,aspirin,metoprolol"
+```
+
+### Programmatic
+```python
+from modules import Orchestrator
+
+orchestrator = Orchestrator()
+result = orchestrator.analyze(['warfarin', 'aspirin', 'metoprolol'])
+print(result['interactions'])
+print(result['risk_assessment'])
+```
+
+---
+
+## 🔬 Validation
+
+### DDInter Validation
+```bash
+python validate_against_ddinter.py
+```
 
 ### FAERS Integration
 ```python
@@ -205,17 +261,34 @@ client = FAERSClient()
 profile = client.get_drug_profile("Warfarin")
 ```
 
-### DDInter Validation
-```bash
-python validate_against_ddinter.py
-```
+---
 
-## Disclaimer
+## ⚠️ Disclaimer
 
-This analysis is for informational purposes only and should not replace professional clinical judgment. Consult qualified healthcare providers before making medication changes.
+**This analysis is for informational and research purposes only.**
 
-## License
+- Not a substitute for professional clinical judgment
+- Consult qualified healthcare providers before making medication changes
+- Drug interaction data may not be complete or up-to-date
 
-This code is provided for research and educational purposes.
+---
 
-**Note:** The datasets used by this project (DrugBank, DDInter, SIDER, CTD) have their own licensing terms. See [DATA_SOURCES.md](DATA_SOURCES.md) for details. Users must obtain datasets directly from the original sources and comply with their respective licenses.
+## 📄 License
+
+This code is provided for **research and educational purposes**.
+
+**Important:** The datasets used by this project have their own licensing terms:
+- **DrugBank** - Academic license required (free for academic use)
+- **DDInter** - Academic use
+- **SIDER/CTD** - Creative Commons
+
+See [DATA_SOURCES.md](DATA_SOURCES.md) for details on obtaining data.
+
+---
+
+## 🙏 Acknowledgments
+
+- [DrugBank](https://go.drugbank.com/) - Drug interaction database
+- [FDA FAERS](https://open.fda.gov/apis/drug/event/) - Adverse event reports
+- [DDInter](http://ddinter.scbdd.com/) - Validation dataset
+- [Ollama](https://ollama.com/) - Local LLM inference
