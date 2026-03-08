@@ -6,7 +6,11 @@ Filtered to Cardiovascular and Antithrombotic Drugs
 This script:
 1. Prompts user for DrugBank XML path (required - licensed data)
 2. Filters to cardiovascular (ATC C*) and antithrombotic (ATC B01*) drugs
-3. Uses existing shareable reference data (FAERS, high-risk drug classes)
+3. Integrates multiple data sources for fact-based knowledge graph:
+   - DrugBank: DDIs, drug targets, enzymes, pathways, categories
+   - SIDER: Drug-side effect associations (requires user download)
+   - CTD: Drug-disease associations (requires user download)
+   - FAERS: FDA adverse event reports (included - public domain)
 4. Builds knowledge graph and launches the application
 
 Filtering logic (from drugbankDataset_wrangling notebook):
@@ -14,17 +18,20 @@ Filtering logic (from drugbankDataset_wrangling notebook):
 - Antithrombotic: ATC code starts with "B01"
 - DDI included if at least one drug is cardiovascular OR antithrombotic
 
+Data Sources:
+- DrugBank XML (required): https://go.drugbank.com/releases/latest
+- SIDER (optional): http://sideeffects.embl.de/download/
+- CTD (optional): https://ctdbase.org/downloads/
+
 Shareable data (included in repo):
 - external_data/faers_comprehensive_reports.json (Public Domain - FDA)
 - external_data/high_risk_drug_classes_reference.json (Wikipedia sources)
-
-User must provide:
-- DrugBank full database XML (requires academic/commercial license)
 """
 
 import os
 import sys
 import json
+import gzip
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from pathlib import Path
@@ -74,6 +81,22 @@ class Protein:
     organism: str = ""
 
 
+@dataclass
+class SideEffect:
+    """Side effect from SIDER with UMLS CUI."""
+    umls_cui: str
+    name: str
+    meddra_type: str = ""  # PT, LLT
+
+
+@dataclass
+class Disease:
+    """Disease from CTD with MeSH ID."""
+    mesh_id: str
+    name: str
+    relationship_type: str = ""  # therapeutic, marker/mechanism
+
+
 # =============================================================================
 # Knowledge Graph Builder - Cardiovascular & Antithrombotic Filter
 # =============================================================================
@@ -102,6 +125,12 @@ class CardioKnowledgeGraphBuilder:
         self.proteins: Dict[str, Protein] = {}
         self.categories: Set[str] = set()
         
+        # SIDER and CTD data
+        self.side_effects: Dict[str, SideEffect] = {}  # umls_cui -> SideEffect
+        self.diseases: Dict[str, Disease] = {}  # mesh_id -> Disease
+        self.drug_se_edges: List[Tuple[str, str]] = []  # (drug_id, se_id)
+        self.drug_disease_edges: List[Tuple[str, str, str]] = []  # (drug_id, disease_id, rel_type)
+        
         # Stats
         self.stats = {
             'total_drugs': 0,
@@ -109,11 +138,15 @@ class CardioKnowledgeGraphBuilder:
             'antithrombotic_drugs': 0,
             'total_ddis': 0,
             'filtered_ddis': 0,
+            'sider_matched': 0,
+            'ctd_matched': 0,
         }
         
         # Reference data paths (shareable - included in repo)
         self.faers_path = "external_data/faers_comprehensive_reports.json"
         self.high_risk_path = "external_data/high_risk_drug_classes_reference.json"
+        self.sider_dir = "external_data/sider"
+        self.ctd_dir = "external_data/ctd"
         
         # Loaded reference data
         self.faers_data = {}
@@ -513,6 +546,162 @@ class CardioKnowledgeGraphBuilder:
         
         print(f"  ✓ Matched {matched} drugs with FAERS data")
     
+    def integrate_sider(self):
+        """
+        Integrate SIDER side effects data using drug name matching.
+        SIDER uses STITCH compound IDs which map to drug names.
+        """
+        print("\n🔬 Integrating SIDER (side effects by drug name match)...")
+        
+        drug_names_file = Path(self.sider_dir) / "drug_names.tsv"
+        se_file = Path(self.sider_dir) / "meddra_all_se.tsv.gz"
+        
+        if not drug_names_file.exists():
+            print(f"  ⚠ SIDER drug names not found: {drug_names_file}")
+            print("    Download from: http://sideeffects.embl.de/download/")
+            return
+        
+        if not se_file.exists():
+            print(f"  ⚠ SIDER side effects not found: {se_file}")
+            print("    Download from: http://sideeffects.embl.de/download/")
+            return
+        
+        # Step 1: Load SIDER drug name mappings (STITCH ID -> drug name)
+        sider_drug_names: Dict[str, str] = {}
+        with open(drug_names_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                parts = line.strip().split('\t')
+                if len(parts) >= 2:
+                    stitch_id = parts[0]
+                    name = parts[1]
+                    # Convert STITCH flat ID format
+                    if stitch_id.startswith('CID'):
+                        stitch_id = 'CID' + stitch_id[3:].zfill(9)
+                    sider_drug_names[stitch_id] = name
+        
+        # Step 2: Build reverse mapping: drug_name_lower -> stitch_ids
+        name_to_stitch: Dict[str, List[str]] = defaultdict(list)
+        for stitch_id, name in sider_drug_names.items():
+            name_to_stitch[name.lower()].append(stitch_id)
+        
+        # Step 3: Build our drug name to drugbank_id mapping
+        our_drug_names: Dict[str, str] = {}
+        for drug_id, drug in self.drugs.items():
+            our_drug_names[drug.name.lower()] = drug_id
+            for syn in drug.synonyms:
+                our_drug_names[syn.lower()] = drug_id
+        
+        # Step 4: Find matching drug names
+        matched_stitch_to_drugbank: Dict[str, str] = {}
+        for name_lower, drug_id in our_drug_names.items():
+            if name_lower in name_to_stitch:
+                for stitch_id in name_to_stitch[name_lower]:
+                    matched_stitch_to_drugbank[stitch_id] = drug_id
+        
+        print(f"  ✓ Matched {len(matched_stitch_to_drugbank)} SIDER drugs by name")
+        
+        # Step 5: Load side effects for matched drugs
+        try:
+            with gzip.open(se_file, 'rt', encoding='utf-8') as f:
+                for line in f:
+                    parts = line.strip().split('\t')
+                    if len(parts) >= 6:
+                        stitch_flat = parts[0]
+                        umls_cui = parts[2]
+                        meddra_type = parts[3]
+                        se_name = parts[5]
+                        
+                        # Check if we have this drug
+                        drugbank_id = matched_stitch_to_drugbank.get(stitch_flat)
+                        
+                        if drugbank_id:
+                            # Add side effect node
+                            if umls_cui not in self.side_effects:
+                                self.side_effects[umls_cui] = SideEffect(
+                                    umls_cui=umls_cui,
+                                    name=se_name,
+                                    meddra_type=meddra_type,
+                                )
+                            
+                            # Add drug-SE edge
+                            self.drug_se_edges.append((drugbank_id, umls_cui))
+                            self.stats['sider_matched'] += 1
+            
+            print(f"  ✓ Loaded {len(self.side_effects):,} unique side effects")
+            print(f"  ✓ Loaded {len(self.drug_se_edges):,} drug-side effect associations")
+            
+        except Exception as e:
+            print(f"  ⚠ Error loading SIDER: {e}")
+    
+    def integrate_ctd(self):
+        """
+        Integrate CTD drug-disease associations using CAS number or drug name matching.
+        """
+        print("\n🔬 Integrating CTD (drug-disease by CAS/name match)...")
+        
+        ctd_file = Path(self.ctd_dir) / "CTD_chemicals_diseases.tsv.gz"
+        
+        if not ctd_file.exists():
+            print(f"  ⚠ CTD file not found: {ctd_file}")
+            print("    Download from: https://ctdbase.org/downloads/")
+            return
+        
+        # Build lookup maps from our drugs
+        our_cas_to_drug: Dict[str, str] = {}
+        our_name_to_drug: Dict[str, str] = {}
+        
+        for drug_id, drug in self.drugs.items():
+            if drug.cas_number:
+                our_cas_to_drug[drug.cas_number] = drug_id
+            our_name_to_drug[drug.name.lower()] = drug_id
+            for syn in drug.synonyms:
+                our_name_to_drug[syn.lower()] = drug_id
+        
+        try:
+            with gzip.open(ctd_file, 'rt', encoding='utf-8') as f:
+                for line in f:
+                    if line.startswith('#'):
+                        continue
+                    
+                    parts = line.strip().split('\t')
+                    if len(parts) >= 6:
+                        chemical_name = parts[0].strip()
+                        cas_rn = parts[2].strip() if len(parts) > 2 else ""
+                        disease_name = parts[3] if len(parts) > 3 else ""
+                        disease_id = parts[4] if len(parts) > 4 else ""
+                        direct_evidence = parts[5] if len(parts) > 5 else ""
+                        
+                        # Only include direct evidence (therapeutic or marker/mechanism)
+                        if not direct_evidence:
+                            continue
+                        
+                        # Try to match by CAS first, then by name
+                        drugbank_id = None
+                        
+                        if cas_rn and cas_rn in our_cas_to_drug:
+                            drugbank_id = our_cas_to_drug[cas_rn]
+                        elif chemical_name.lower() in our_name_to_drug:
+                            drugbank_id = our_name_to_drug[chemical_name.lower()]
+                        
+                        if drugbank_id and disease_id:
+                            # Add disease node
+                            if disease_id not in self.diseases:
+                                self.diseases[disease_id] = Disease(
+                                    mesh_id=disease_id,
+                                    name=disease_name,
+                                    relationship_type=direct_evidence,
+                                )
+                            
+                            # Add drug-disease edge
+                            self.drug_disease_edges.append((drugbank_id, disease_id, direct_evidence))
+                            self.stats['ctd_matched'] += 1
+            
+            print(f"  ✓ Loaded {len(self.diseases):,} unique diseases")
+            print(f"  ✓ Loaded {len(self.drug_disease_edges):,} drug-disease associations")
+            
+        except Exception as e:
+            print(f"  ⚠ Error loading CTD: {e}")
+    
     def export_for_app(self, output_dir: str):
         """Export knowledge graph for the DDI app"""
         os.makedirs(output_dir, exist_ok=True)
@@ -587,6 +776,44 @@ class CardioKnowledgeGraphBuilder:
                         count += 1
         print(f"  ✓ drug_category_edges.csv: {count:,} edges")
         
+        # Export side effects (from SIDER)
+        if self.side_effects:
+            se_file = os.path.join(neo4j_dir, 'side_effects.csv')
+            with open(se_file, 'w') as f:
+                f.write('umls_cui,name,meddra_type\n')
+                for se in self.side_effects.values():
+                    name = se.name.replace('"', '""')
+                    f.write(f'"{se.umls_cui}","{name}","{se.meddra_type}"\n')
+            print(f"  ✓ side_effects.csv: {len(self.side_effects):,} side effects")
+        
+        # Export drug-side effect edges
+        if self.drug_se_edges:
+            drug_se_file = os.path.join(neo4j_dir, 'drug_side_effect_edges.csv')
+            with open(drug_se_file, 'w') as f:
+                f.write('drug_id,side_effect_id\n')
+                for drug_id, se_id in self.drug_se_edges:
+                    f.write(f'"{drug_id}","{se_id}"\n')
+            print(f"  ✓ drug_side_effect_edges.csv: {len(self.drug_se_edges):,} edges")
+        
+        # Export diseases (from CTD)
+        if self.diseases:
+            diseases_file = os.path.join(neo4j_dir, 'diseases.csv')
+            with open(diseases_file, 'w') as f:
+                f.write('mesh_id,name,relationship_type\n')
+                for disease in self.diseases.values():
+                    name = disease.name.replace('"', '""')
+                    f.write(f'"{disease.mesh_id}","{name}","{disease.relationship_type}"\n')
+            print(f"  ✓ diseases.csv: {len(self.diseases):,} diseases")
+        
+        # Export drug-disease edges
+        if self.drug_disease_edges:
+            drug_disease_file = os.path.join(neo4j_dir, 'drug_disease_edges.csv')
+            with open(drug_disease_file, 'w') as f:
+                f.write('drug_id,disease_id,relationship_type\n')
+                for drug_id, disease_id, rel_type in self.drug_disease_edges:
+                    f.write(f'"{drug_id}","{disease_id}","{rel_type}"\n')
+            print(f"  ✓ drug_disease_edges.csv: {len(self.drug_disease_edges):,} edges")
+        
         # Export statistics
         stats = {
             'total_drugs_scanned': self.stats['total_drugs'],
@@ -597,8 +824,13 @@ class CardioKnowledgeGraphBuilder:
             'filtered_ddis': len(self.ddis),
             'proteins': len(self.proteins),
             'categories': len(self.categories),
+            'side_effects': len(self.side_effects),
+            'drug_side_effect_edges': len(self.drug_se_edges),
+            'diseases': len(self.diseases),
+            'drug_disease_edges': len(self.drug_disease_edges),
             'faers_matched': len([d for d in self.drugs.values() if d.name.lower() in self.faers_data]),
-            'filter_criteria': 'At least one drug is cardiovascular (ATC C*) OR antithrombotic (ATC B01*)'
+            'filter_criteria': 'At least one drug is cardiovascular (ATC C*) OR antithrombotic (ATC B01*)',
+            'data_sources': ['DrugBank (DDIs, proteins, categories)', 'SIDER (side effects)', 'CTD (drug-disease)', 'FAERS (adverse events)']
         }
         with open(os.path.join(output_dir, 'statistics.json'), 'w') as f:
             json.dump(stats, f, indent=2)
@@ -693,6 +925,8 @@ def build_and_run():
     builder.build_atc_lookup()
     builder.parse_filtered_drugs()
     builder.enrich_with_faers()
+    builder.integrate_sider()
+    builder.integrate_ctd()
     builder.export_for_app(output_dir)
     
     print()
@@ -703,6 +937,8 @@ def build_and_run():
     print(f"  Filter: Cardiovascular (ATC C*) OR Antithrombotic (ATC B01*)")
     print(f"  Drugs: {len(builder.drugs):,}")
     print(f"  DDIs: {len(builder.ddis):,}")
+    print(f"  Side Effects (SIDER): {len(builder.side_effects):,}")
+    print(f"  Diseases (CTD): {len(builder.diseases):,}")
     print()
     
     # Copy generated KG to the location expected by ddi_app.py
